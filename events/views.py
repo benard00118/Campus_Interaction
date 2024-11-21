@@ -444,24 +444,14 @@ def campus_autocomplete(request):
 # Update the registration view to handle name validation properly
 
 
+# views.py
 @login_required
 @require_http_methods(["POST"])
 def register_for_event(request, event_id):
-    """Handle event registration with proper validation"""
+    """Handle event registration with proper validation and waitlist management"""
     try:
         event = get_object_or_404(Event, id=event_id)
         user_profile = request.user.profile
-
-        # Check existing registration
-        existing_registration = EventRegistration.objects.filter(
-            event=event,
-            participant=user_profile,
-            status__in=['registered', 'waitlist']
-        ).first()
-
-        if existing_registration:
-            # If it exists but was cancelled, delete it
-            existing_registration.delete()
 
         # Create and validate form
         form = EventRegistrationForm(
@@ -471,12 +461,23 @@ def register_for_event(request, event_id):
         )
 
         if not form.is_valid():
-            logger.warning(f"Validation errors: {form.errors}")  # Log detailed validation errors
+            logger.warning(f"Validation errors: {form.errors}")
             return JsonResponse({
-                'error': "Invalid input. Please correct the errors and try again."
+                'success': False,
+                'error': "Invalid input. Please correct the errors and try again.",
+                'form_errors': form.errors
             }, status=400)
 
         with transaction.atomic():
+            # Get current registration counts
+            registered_count = EventRegistration.objects.filter(
+                event=event,
+                status='registered'
+            ).count()
+            
+            # Check if event is full
+            is_full = event.max_participants and registered_count >= event.max_participants
+
             registration = form.save(commit=False)
             registration.event = event
             registration.participant = user_profile
@@ -484,8 +485,9 @@ def register_for_event(request, event_id):
             registration.email = form.cleaned_data['email']
 
             # Set status based on availability
-            if event.is_full:
+            if is_full:
                 registration.status = 'waitlist'
+                # Calculate waitlist position
                 last_position = EventRegistration.objects.filter(
                     event=event,
                     status='waitlist'
@@ -493,6 +495,7 @@ def register_for_event(request, event_id):
                 registration.waitlist_position = last_position + 1
             else:
                 registration.status = 'registered'
+                registration.waitlist_position = None
 
             registration.save()
 
@@ -505,23 +508,33 @@ def register_for_event(request, event_id):
             except Exception as e:
                 logger.error(f"Failed to send email to {registration.email}: {str(e)}")
 
-            return JsonResponse({
+            response_data = {
                 'success': True,
                 'status': registration.status,
-                'message': ('Successfully registered' if registration.status == 'registered' 
-                          else f'Added to waitlist (Position: {registration.waitlist_position})'),
                 'waitlist_position': registration.waitlist_position,
                 'spots_left': event.spots_left
-            })
+            }
+
+            if registration.status == 'waitlist':
+                response_data['message'] = f'You have been added to the waiting list (Position: {registration.waitlist_position})'
+            else:
+                response_data['message'] = 'Registration successful!'
+
+            return JsonResponse(response_data)
 
     except ValidationError as e:
-        logger.error(f"Validation error: {str(e)}")  # Log exact error
-        return JsonResponse({'error': 'There was an issue with your request. Please check your input.'}, status=400)
+        logger.error(f"Validation error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
     except Exception as e:
-        logger.exception("Unhandled exception occurred during event registration")  # Use exception logging for stack trace
-        return JsonResponse({'error': 'An unexpected error occurred. Please try again later.'}, status=500)
-
-
+        logger.exception("Unhandled exception occurred during event registration")
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again later.'
+        }, status=500)
+        
 # Update the email sending function to handle name properly
 def send_registration_email(registration):
     """Send registration confirmation or waitlist email to participant."""
@@ -560,64 +573,6 @@ def send_registration_email(registration):
     except Exception as e:
         logger.error(f"Error sending registration email to {registration.email} for event {registration.event.title}: {e}")
         raise
-
-
-@login_required
-def cancel_registration(request, event_id):
-    """Handle registration cancellation with waitlist promotion."""
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Invalid method'}, status=405)
-    
-    try:
-        # First get the event to ensure it exists
-        event = get_object_or_404(Event, id=event_id)
-        
-        # Then get the registration
-        registration = EventRegistration.objects.filter(
-            event_id=event_id,
-            participant=request.user.profile,
-            status__in=['registered', 'waitlist']  # Only allow canceling active registrations
-        ).first()
-        
-        if not registration:
-            return JsonResponse({
-                'success': False,
-                'error': 'No active registration found for this event'
-            }, status=404)
-        
-        with transaction.atomic():
-            # Store the previous status for response
-            previous_status = registration.status
-            
-            # Cancel the registration
-            registration.cancel_registration()
-            # Actually delete the registration
-            registration.delete()
-            # Get updated spots count using the new method name
-            spots_remaining = event.spots_left,
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Registration cancelled successfully',
-                'previous_status': previous_status,
-                'spots_left': spots_remaining
-            })
-            
-    except Event.DoesNotExist:
-        return JsonResponse({
-            'success': False,
-            'error': 'Event not found'
-        }, status=404)
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error("An error occurred during registration cancellation", exc_info=True)  # Logs full stack trace for debugging
-    
-    # Return a generic error message to the user
-    return JsonResponse({
-        'success': False,
-        'error': 'An unexpected error occurred. Please try again later.'
-    }, status=500)
-
 @login_required
 def event_attendees(request, event_id):
     """
@@ -714,3 +669,173 @@ def event_status(request, event_id):
         }
     
     return JsonResponse(response_data)
+
+class WaitlistManager:
+    """
+    Manages waitlist operations including promotions and notifications
+    """
+    def __init__(self, event):
+        self.event = event
+
+    def process_promotion(self):
+        """
+        Process waitlist promotion when a spot becomes available.
+        Returns True if someone was promoted, False otherwise.
+        """
+        try:
+            with transaction.atomic():
+                # Get next person in line with select_for_update to prevent race conditions
+                next_in_line = self.event.registrations.filter(
+                    status='waitlist'
+                ).order_by('waitlist_position').select_for_update().first()
+
+                if not next_in_line:
+                    return False
+
+                # Verify spot is actually available
+                if not self._verify_spot_available():
+                    return False
+
+                # Promote the registration
+                previous_position = next_in_line.waitlist_position
+                next_in_line.status = 'registered'
+                next_in_line.waitlist_position = None
+                next_in_line.save()
+
+                # Reorder remaining waitlist
+                self._reorder_waitlist()
+
+                # Send notification
+                self._send_promotion_notification(next_in_line, previous_position)
+
+                return True
+
+        except Exception as e:
+            logger.error(f"Error in waitlist promotion for event {self.event.id}: {str(e)}")
+            return False
+
+    def _verify_spot_available(self):
+        """Check if there's an available spot in the event"""
+        if self.event.max_participants is None:
+            return True
+            
+        registered_count = self.event.registrations.filter(
+            status='registered'
+        ).count()
+        
+        return registered_count < self.event.max_participants
+
+    def _reorder_waitlist(self):
+        """Reorder waitlist positions after a promotion"""
+        with transaction.atomic():
+            waitlist_registrations = self.event.registrations.filter(
+                status='waitlist'
+            ).order_by('registration_date').select_for_update()
+
+            for i, registration in enumerate(waitlist_registrations, 1):
+                registration.waitlist_position = i
+                registration.save(update_fields=['waitlist_position'])
+
+    def _send_promotion_notification(self, registration, previous_position):
+        """Send email notification about promotion from waitlist"""
+        try:
+            subject = f"You've Been Registered - {self.event.title}"
+            
+            context = {
+                'event': self.event,
+                'participant_name': registration.name,
+                'previous_position': previous_position,
+                'event_date': self.event.start_date,
+                'event_location': self.event.location or 'Online',
+                'registration_link': f"{settings.SITE_URL}/events/{self.event.id}/"
+            }
+
+            html_message = render_to_string(
+                'events/emails/waitlist_promotion.html', 
+                context
+            )
+            plain_message = strip_tags(html_message)
+
+            send_mail(
+                subject=subject,
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[registration.email],
+                html_message=html_message,
+                fail_silently=False
+            )
+
+            logger.info(
+                f"Sent promotion notification to {registration.email} "
+                f"for event {self.event.id}"
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to send promotion notification to {registration.email} "
+                f"for event {self.event.id}: {str(e)}"
+            )
+
+@login_required
+def cancel_registration(request, event_id):
+    """Handle registration cancellation with waitlist promotion."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    
+    try:
+        # First get the event to ensure it exists
+        event = get_object_or_404(Event, id=event_id)
+        
+        # Then get the registration
+        registration = EventRegistration.objects.filter(
+            event_id=event_id,
+            participant=request.user.profile,
+            status__in=['registered', 'waitlist']  # Only allow canceling active registrations
+        ).first()
+        
+        if not registration:
+            return JsonResponse({
+                'success': False,
+                'error': 'No active registration found for this event'
+            }, status=404)
+        
+        with transaction.atomic():
+            # Store the previous status for response
+            previous_status = registration.status
+            was_registered = registration.status == 'registered'
+            
+            # Cancel and delete the registration
+            registration.cancel_registration()
+            registration.delete()
+            
+            # Get updated spots count
+            spots_remaining = event.spots_left
+            
+            # Try to promote someone from waitlist if a registered spot was freed
+            if was_registered:
+                waitlist_manager = WaitlistManager(event)
+                promoted = waitlist_manager.process_promotion()
+                
+                if promoted:
+                    logger.info(f"Successfully promoted next person from waitlist for event {event.id}")
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Registration cancelled successfully',
+                'previous_status': previous_status,
+                'spots_left': spots_remaining
+            })
+            
+    except Event.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Event not found'
+        }, status=404)
+    except Exception as e:
+        logger.error("An error occurred during registration cancellation", exc_info=True)
+        
+        # Return a generic error message to the user
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected error occurred. Please try again later.'
+        }, status=500)
