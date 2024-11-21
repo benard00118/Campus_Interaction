@@ -52,7 +52,7 @@ urlpatterns = [
     path('create/', EventCreateView.as_view(), name='create_event'),
     path('<int:event_id>/delete/', EventDeleteView.as_view(), name='delete_event'),
     
-<<<<<<< HEAD
+
     # Registration URLs
     path('event/<int:event_id>/register/', 
          EventRegistrationView.as_view(), 
@@ -70,18 +70,8 @@ urlpatterns = [
     # Utility URLs
     path('university/autocomplete/', CampusAutocompleteView.as_view(), name='university_autocomplete'),
     path('select2/', include('django_select2.urls')),
-=======
-    # API-style endpoints for AJAX calls
-    path('api/event/<int:event_id>/status/', views.event_status, name='event_status'),
-    path('api/event/<int:event_id>/waitlist/', views.waitlist_position, name='waitlist_position'),
+
     
-    
-      # Specific update endpoints
-    path('api/events/<int:pk>/update/', 
-         api_views.EventViewSet.as_view({'patch': 'partial_update'}), 
-         name='event-update'),
-    path('api/events/<int:pk>/status/', 
-         api_views.EventViewSet.as_view({'post': 'update_event_status'}), 
-         name='event-status-update'),
->>>>>>> fb154f9e (Implemented event updating)
+  
+
 ]

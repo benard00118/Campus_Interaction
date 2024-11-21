@@ -150,6 +150,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "camphub.ke@gmail.com"
 EMAIL_HOST_PASSWORD = "daqz qzkm ximp xpiy"
 DEFAULT_FROM_EMAIL = "camphub.ke@gmail.com"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 72ca8c64 (Production version)
 # Authentication Backend
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
