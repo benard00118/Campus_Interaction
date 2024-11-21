@@ -163,3 +163,69 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You are already registered for this event.")
 
         return data
+    
+
+
+class EventUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer specifically for updating events with controlled fields
+    """
+    # Add a status field if not already in the model
+    status = serializers.ChoiceField(
+        choices=['draft', 'published', 'canceled'], 
+        required=False
+    )
+
+    # Add a special field to handle image explicitly
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = Event
+        fields = [
+            'title', 
+            'description', 
+            'start_date', 
+            'end_date', 
+            'location', 
+            'max_participants', 
+            'is_public', 
+            'status',  # Include status
+            'event_type',
+            'content',
+            'image'
+        ]
+        extra_kwargs = {
+            'image': {'required': False},
+            'title': {'required': False},
+            'description': {'required': False},
+            # Allow partial updates
+        }
+
+    def update(self, instance, validated_data):
+        """
+        Custom update method to handle potential missing fields and preserve existing image
+        """
+        # Remove status if not in the model or validated_data
+        if 'status' in validated_data:
+            validated_data.pop('status')
+        
+        # Explicitly handle the image field
+        if 'image' not in validated_data:
+            # If no image is provided in the update, keep the existing image
+            validated_data['image'] = instance.image
+        elif validated_data['image'] is None:
+            # If image is explicitly set to None, remove the image
+            validated_data['image'] = ''
+        
+        return super().update(instance, validated_data)
+
+    def to_internal_value(self, data):
+        """
+        Custom method to handle image preservation
+        """
+        # If image is not in the data, it means no image update is intended
+        if 'image' not in data:
+            # Temporarily add the existing image to preserve it
+            data['image'] = self.instance.image if self.instance and self.instance.image else None
+        
+        return super().to_internal_value(data)
