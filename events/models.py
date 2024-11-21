@@ -272,34 +272,3 @@ class CommentLike(models.Model):
         return f"{self.user} likes {self.comment}"
 
 
-class Reply(models.Model):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='replies')
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_replies')
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    likes = models.ManyToManyField(Profile, through='ReplyLike', related_name='liked_replies')
-    is_edited = models.BooleanField(default=False)
-    
-    class Meta:
-        ordering = ['created_at']
-        
-    def save(self, *args, **kwargs):
-        if self.pk:  # If reply exists (being updated)
-            self.is_edited = True
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Reply by {self.user} on {self.created_at}"
-
-
-class ReplyLike(models.Model):
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    reply = models.ForeignKey(Reply, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ['user', 'reply']
-
-    def __str__(self):
-        return f"{self.user} likes reply {self.reply.id}"
