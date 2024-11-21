@@ -114,6 +114,14 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 // Immediate success handling
                 showAlert('success', data.message);
+                 // Update UI based on registration status
+                if (data.status === 'waitlist') {
+                    document.getElementById('registration-status').innerHTML = 
+                        `You're on the waiting list (Position: ${data.waitlist_position})`;
+                } else {
+                    document.getElementById('registration-status').innerHTML = 
+                        "You're registered!";
+                }
                 
                 // Reload page or update UI
                 setTimeout(() => {
@@ -202,14 +210,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function showAlert(type, message) {
-        if (!alertsContainer) return;
+    // function showAlert(type, message) {
+    //     if (!alertsContainer) return;
         
-        alertsContainer.innerHTML = '';
+    //     alertsContainer.innerHTML = '';
+        
+    //     const alert = document.createElement('div');
+    //     alert.className = `alert alert-${type}`;
+    //     alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+    //     alertsContainer.appendChild(alert);
+    // }
+
+    function showAlert(type, message, details = '') {
+        if (!alertsContainer) return;
         
         const alert = document.createElement('div');
         alert.className = `alert alert-${type}`;
-        alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+        alert.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+            ${message}
+            ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+        `;
+        alertsContainer.innerHTML = '';
         alertsContainer.appendChild(alert);
     }
 
