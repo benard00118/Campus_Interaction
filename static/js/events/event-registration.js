@@ -193,6 +193,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Handle response
             if (data.success) {
                 showAlert('success', data.message);
+                 // Update UI based on registration status
+                if (data.status === 'waitlist') {
+                    document.getElementById('registration-status').innerHTML = 
+                        `You're on the waiting list (Position: ${data.waitlist_position})`;
+                } else {
+                    document.getElementById('registration-status').innerHTML = 
+                        "You're registered!";
+                }
                 
                 // Update UI based on registration status
                 if (data.status === 'waitlist') {
@@ -289,6 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+<<<<<<< HEAD
 
     // Update the showAlert function to handle waitlist messages
 function showAlert(type, message, details = '') {
@@ -318,6 +327,32 @@ if (data.success) {
         location.reload();
     }, 2000);
 }
+=======
+    // function showAlert(type, message) {
+    //     if (!alertsContainer) return;
+        
+    //     alertsContainer.innerHTML = '';
+        
+    //     const alert = document.createElement('div');
+    //     alert.className = `alert alert-${type}`;
+    //     alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+    //     alertsContainer.appendChild(alert);
+    // }
+
+    function showAlert(type, message, details = '') {
+        if (!alertsContainer) return;
+        
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type}`;
+        alert.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+            ${message}
+            ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+        `;
+        alertsContainer.innerHTML = '';
+        alertsContainer.appendChild(alert);
+    }
+>>>>>>> 8c524faa (Implemented waitlist registration)
 
     function clearAlerts() {
         if (alertsContainer) {
