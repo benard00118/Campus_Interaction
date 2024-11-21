@@ -147,6 +147,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+<<<<<<< HEAD
 EMAIL_HOST_USER = "camphub.ke@gmail.com"
 EMAIL_HOST_PASSWORD = "daqz qzkm ximp xpiy"
 DEFAULT_FROM_EMAIL = "camphub.ke@gmail.com"
@@ -154,6 +155,11 @@ DEFAULT_FROM_EMAIL = "camphub.ke@gmail.com"
 =======
 
 >>>>>>> 72ca8c64 (Production version)
+=======
+EMAIL_HOST_USER = ""
+EMAIL_HOST_PASSWORD = ""
+DEFAULT_FROM_EMAIL = ""
+>>>>>>> 5aab010c (Production version)
 # Authentication Backend
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
