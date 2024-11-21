@@ -40,7 +40,16 @@ class Event(models.Model):
         ('physical', 'Physical Event'),
         ('text', 'Text-Based Event'),
     ]
-    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('canceled', 'Canceled')
+    ]
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES, 
+        default='draft'
+    )
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='events')
     title = models.CharField(max_length=200, help_text="Enter the event title.")
     description = models.TextField(help_text="Event description")

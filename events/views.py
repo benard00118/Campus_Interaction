@@ -92,7 +92,7 @@ def event_detail(request, event_id):
         participant=user_profile,
         status__in=['registered', 'waitlist']
     ).first()
-    comments = comments.objects.all()
+    comments = event.comments.all()
     comment_form = CommentForm()
     user_registered = registration is not None
     

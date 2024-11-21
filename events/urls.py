@@ -45,4 +45,13 @@ urlpatterns = [
     # API-style endpoints for AJAX calls
     path('api/event/<int:event_id>/status/', views.event_status, name='event_status'),
     path('api/event/<int:event_id>/waitlist/', views.waitlist_position, name='waitlist_position'),
+    
+    
+      # Specific update endpoints
+    path('api/events/<int:pk>/update/', 
+         api_views.EventViewSet.as_view({'patch': 'partial_update'}), 
+         name='event-update'),
+    path('api/events/<int:pk>/status/', 
+         api_views.EventViewSet.as_view({'post': 'update_event_status'}), 
+         name='event-status-update'),
 ]

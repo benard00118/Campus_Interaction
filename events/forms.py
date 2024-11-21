@@ -1,6 +1,6 @@
 #events/forms.py
 from django import forms
-from .models import Event, Comment, EventRegistration,Reply
+from .models import Event, Comment, EventRegistration
 
 
 class EventForm(forms.ModelForm):
