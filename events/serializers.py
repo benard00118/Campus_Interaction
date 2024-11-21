@@ -1,7 +1,7 @@
 # events/serializers.py
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Event, EventCategory, EventRegistration, Comment, Reply
+from .models import Event, EventCategory, EventRegistration, Comment
 
 
 class EventCategorySerializer(serializers.ModelSerializer):
@@ -10,38 +10,13 @@ class EventCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
 
     
-class ReplySerializer(serializers.ModelSerializer):
-    user = serializers.SerializerMethodField()
-    likes_count = serializers.SerializerMethodField()
-    is_liked_by_user = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Reply
-        fields = ['id', 'content', 'user', 'created_at', 'updated_at',
-                 'likes_count', 'is_liked_by_user', 'is_edited']
-        read_only_fields = ['user', 'created_at', 'updated_at', 'is_edited']
-
-    def get_user(self, obj):
-        return {
-            'id': obj.user.id,
-            'username': obj.user.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None
-        }
-
-    def get_likes_count(self, obj):
-        return obj.likes.count()
-
-    def get_is_liked_by_user(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.likes.filter(id=request.user.profile.id).exists()
-        return False
 # Update CommentSerializer to use ReplySerializer
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked_by_user = serializers.SerializerMethodField()
-    replies = ReplySerializer(many=True, read_only=True)
+    
 
     class Meta:
         model = Comment

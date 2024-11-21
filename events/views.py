@@ -12,9 +12,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.views.decorators.http import require_http_methods
 from profiles.models import Profile
-from .models import Event, EventRegistration, Comment, ReplyLike, Reply
-from .forms import EventForm, CommentForm, EventRegistrationForm, ReplyForm
-from .serializers import ReplySerializer, CommentSerializer
+from .models import Event, EventRegistration, Comment
+from .forms import EventForm, CommentForm, EventRegistrationForm
+from .serializers import  CommentSerializer
 import json
 from django.core.paginator import EmptyPage, InvalidPage
 from django.template.loader import render_to_string
@@ -92,7 +92,7 @@ def event_detail(request, event_id):
         participant=user_profile,
         status__in=['registered', 'waitlist']
     ).first()
-    comments = event.comments.filter(parent=None).prefetch_related('replies', 'likes')
+    comments = comments.objects.all()
     comment_form = CommentForm()
     user_registered = registration is not None
     
@@ -147,7 +147,7 @@ def create_event(request):
 @require_POST
 @require_http_methods(["POST"])
 def add_comment(request, event_id):
-    """Add a new comment or reply to an event."""
+    """Add a new comment to an event."""
     try:
         # Get the event
         event = get_object_or_404(Event, id=event_id)
@@ -163,22 +163,6 @@ def add_comment(request, event_id):
             comment = form.save(commit=False)
             comment.event = event
             comment.user = request.user.profile  # Assuming you have a profile relation
-
-            # Handle parent comment for replies
-            parent_id = request.POST.get('parent_comment_id')
-            if parent_id:
-                try:
-                    parent_comment = Comment.objects.get(id=parent_id)
-                    comment.parent = parent_comment
-                except Comment.DoesNotExist:
-                    if is_ajax:
-                        return JsonResponse({
-                            'status': 'error',
-                            'message': 'Parent comment not found'
-                        }, status=400)
-                    else:
-                        messages.error(request, 'Parent comment not found')
-                        return redirect('events:event_detail', event_id=event_id)
 
             # Save the comment
             comment.save()
@@ -226,69 +210,9 @@ def add_comment(request, event_id):
 
 
 @login_required
-@require_POST
-@require_http_methods(["POST"])
-def add_reply(request, comment_id):
-    """Add a new reply to a comment."""
-    try:
-        # Get the comment
-        comment = get_object_or_404(Comment, id=comment_id)
-        
-        # Create a form instance with the POST data
-        form = ReplyForm(request.POST)
-        
-        # Check if it's an AJAX request
-        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-        
-        if form.is_valid():
-            # Create reply instance but don't save yet
-            reply = form.save(commit=False)
-            reply.comment = comment
-            reply.user = request.user.profile
-            
-            # Save the reply
-            reply.save()
-            
-            if is_ajax:
-                # Serialize the reply
-                serializer = ReplySerializer(reply, context={'request': request})
-                return JsonResponse({
-                    'status': 'success',
-                    'reply': serializer.data
-                })
-            else:
-                messages.success(request, 'Reply added successfully!')
-                return redirect('events:event_detail', event_id=comment.event.id)
-        else:
-            if is_ajax:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': 'Invalid form data',
-                    'errors': form.errors
-                }, status=400)
-            else:
-                messages.error(request, 'Please correct the errors below.')
-                return redirect('events:event_detail', event_id=comment.event.id)
-                
-    except Exception:
-        # Log the generic error message
-        logger.error("Unexpected error occurred in add_reply view", exc_info=True)
-        
-        # Return a generic error message to the user
-        generic_error_message = 'An unexpected error occurred. Please try again later.'
-        if is_ajax:
-            return JsonResponse({
-                'status': 'error',
-                'message': generic_error_message
-            }, status=500)
-        else:
-            messages.error(request, generic_error_message)
-            return redirect('events:event_detail', event_id=comment.event.id)
-
-@login_required
 @require_http_methods(["DELETE"])
 def delete_comment(request, comment_id):
-    """Delete a comment or reply."""
+    """Delete a comment """
     try:
         # Attempt to fetch the comment
         comment = get_object_or_404(Comment, id=comment_id)
@@ -328,7 +252,6 @@ def load_more_comments(request, event_id):
 
     comments = Comment.objects.filter(
         event=event,
-        parent=None
     ).select_related(
         'user__user'
     ).prefetch_related(
@@ -370,29 +293,6 @@ def toggle_comment_like(request, comment_id):
         
     
     })
-# Update your view to use the new model
-@login_required
-@require_POST
-def toggle_reply_like(request, reply_id):
-    reply = get_object_or_404(Reply, id=reply_id)
-    like, created = ReplyLike.objects.get_or_create(
-        user=request.user.profile,
-        reply=reply,
-        defaults={} if created else None
-    )
-    
-    if not created:
-        like.delete()
-        is_liked = False
-    else:
-        is_liked = True
-    
-    return JsonResponse({
-        'status': 'success',
-        'likes_count': reply.likes_count,
-        'is_liked': is_liked
-    })
-
 
 @login_required
 @require_http_methods(["POST", "DELETE"])

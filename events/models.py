@@ -243,22 +243,17 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='comment_replies')
     likes = models.ManyToManyField(Profile, through='CommentLike', related_name='liked_comments')  # Profile is used here
-    level = models.PositiveIntegerField(default=0)
     is_edited = models.BooleanField(default=False)
-    path = models.TextField(editable=False, db_index=True, default="")  # Used for ordering hierarchical comments
 
     class Meta:
-        ordering = ['path']  # Orders by hierarchical path for displaying replies under parent comments
+        ordering = ['created_at']  # Order comments by creation time
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # Only set path for new comments
-            self.path = f"{self.parent.path if self.parent else ''}/{self.pk or ''}".strip('/')
-            self.level = (self.parent.level + 1) if self.parent else 0
-        else:
+        if self.pk:  # Mark as edited if it's an update
             self.is_edited = True
         super().save(*args, **kwargs)
+
 
 class CommentLike(models.Model):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE)  # Profile is used here

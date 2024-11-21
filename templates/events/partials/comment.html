@@ -33,13 +33,6 @@
                     </button>
                     {% endif %}
                     
-                    <button 
-                        onclick="toggleReplyForm({{ comment.id }})" 
-                        class="btn btn-sm btn-outline-primary reply-button"
-                        data-comment-id="{{ comment.id }}"
-                    >
-                        <i class="fas fa-reply"></i> Reply
-                    </button>
                 </div>
             </div>
             
@@ -47,51 +40,7 @@
                 <p class="mb-0">{{ comment.content }}</p>
             </div>
 
-            <!-- Reply Form -->
-            <div id="reply-form-{{ comment.id }}" class="reply-form mb-3" style="display: none;">
-                <form method="POST" action="{% url 'events:add_comment' event.id %}" class="comment-form">
-                    {% csrf_token %}
-                    <input type="hidden" name="parent_comment_id" value="{{ comment.id }}">
-                    <div class="form-floating mb-2">
-                        <textarea 
-                            name="content" 
-                            class="form-control" 
-                            id="reply-textarea-{{ comment.id }}"
-                            placeholder="Write your reply..." 
-                            style="height: 80px"
-                            required
-                        ></textarea>
-                        <label for="reply-textarea-{{ comment.id }}">Write your reply...</label>
-                    </div>
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleReplyForm({{ comment.id }})">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="fas fa-paper-plane" onclick="submitReply({{ comment.id }})"></i> Post Reply
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-       <!-- Replies Section -->
-        {% if comment.replies.exists %}
-        <div class="replies-section mt-3">
-            <button 
-                onclick="toggleReplies({{ comment.id }})" 
-                class="btn btn-sm btn-link text-decoration-none ps-0"
-            >
-                <i class="fas fa-chevron-down me-1"></i>
-                Show {{ comment.replies.count }} repl{{ comment.replies.count|pluralize:"y,ies" }}
-            </button>
-            <div id="replies-{{ comment.id }}" class="replies-container mt-2 ms-4" style="display: none;">
-                {% for reply in comment.replies.all|dictsortreversed:"created_at" %}
-                    {% include "events/partials/reply.html" with reply=reply %}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-    </div>
+               </div>
 </div>
 </div>
 

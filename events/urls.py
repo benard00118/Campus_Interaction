@@ -31,7 +31,7 @@ urlpatterns = [
     path('<int:event_id>/comments/', views.load_more_comments, name='load_more_comments'),
     # urls.py
     path('comment/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
-    path('events/reply/<int:reply_id>/like/', views.toggle_reply_like, name='toggle_reply_like'),
+    # path('events/reply/<int:reply_id>/like/', views.toggle_reply_like, name='toggle_reply_like'),
     
         # Event detail and registration
     # path('event/<int:event_id>/', views.event_detail, name='event_detail'),
