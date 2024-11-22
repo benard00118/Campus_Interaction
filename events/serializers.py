@@ -1,7 +1,7 @@
 # events/serializers.py
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Event, EventCategory, EventRegistration, Comment, Reply
+from .models import Event, EventCategory, EventRegistration, Comment
 
 
 class EventCategorySerializer(serializers.ModelSerializer):
@@ -10,38 +10,13 @@ class EventCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description']
 
     
-class ReplySerializer(serializers.ModelSerializer):
-    user = serializers.SerializerMethodField()
-    likes_count = serializers.SerializerMethodField()
-    is_liked_by_user = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Reply
-        fields = ['id', 'content', 'user', 'created_at', 'updated_at',
-                 'likes_count', 'is_liked_by_user', 'is_edited']
-        read_only_fields = ['user', 'created_at', 'updated_at', 'is_edited']
-
-    def get_user(self, obj):
-        return {
-            'id': obj.user.id,
-            'username': obj.user.user.username,
-            'avatar': obj.user.avatar.url if obj.user.avatar else None
-        }
-
-    def get_likes_count(self, obj):
-        return obj.likes.count()
-
-    def get_is_liked_by_user(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.likes.filter(id=request.user.profile.id).exists()
-        return False
 # Update CommentSerializer to use ReplySerializer
 class CommentSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked_by_user = serializers.SerializerMethodField()
-    replies = ReplySerializer(many=True, read_only=True)
+    
 
     class Meta:
         model = Comment
@@ -188,3 +163,69 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("You are already registered for this event.")
 
         return data
+    
+
+
+class EventUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer specifically for updating events with controlled fields
+    """
+    # Add a status field if not already in the model
+    status = serializers.ChoiceField(
+        choices=['draft', 'published', 'canceled'], 
+        required=False
+    )
+
+    # Add a special field to handle image explicitly
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = Event
+        fields = [
+            'title', 
+            'description', 
+            'start_date', 
+            'end_date', 
+            'location', 
+            'max_participants', 
+            'is_public', 
+            'status',  # Include status
+            'event_type',
+            'content',
+            'image'
+        ]
+        extra_kwargs = {
+            'image': {'required': False},
+            'title': {'required': False},
+            'description': {'required': False},
+            # Allow partial updates
+        }
+
+    def update(self, instance, validated_data):
+        """
+        Custom update method to handle potential missing fields and preserve existing image
+        """
+        # Remove status if not in the model or validated_data
+        if 'status' in validated_data:
+            validated_data.pop('status')
+        
+        # Explicitly handle the image field
+        if 'image' not in validated_data:
+            # If no image is provided in the update, keep the existing image
+            validated_data['image'] = instance.image
+        elif validated_data['image'] is None:
+            # If image is explicitly set to None, remove the image
+            validated_data['image'] = ''
+        
+        return super().update(instance, validated_data)
+
+    def to_internal_value(self, data):
+        """
+        Custom method to handle image preservation
+        """
+        # If image is not in the data, it means no image update is intended
+        if 'image' not in data:
+            # Temporarily add the existing image to preserve it
+            data['image'] = self.instance.image if self.instance and self.instance.image else None
+        
+        return super().to_internal_value(data)

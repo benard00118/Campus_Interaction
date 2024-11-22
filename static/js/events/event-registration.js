@@ -1,6 +1,16 @@
 document.addEventListener('DOMContentLoaded', function() {
     const eventId = document.getElementById('event-container')?.dataset.eventId;
     if (!eventId) return;
+ 
+
+      // Safe element selection with fallback
+      function safeSelect(selector) {
+        const element = document.querySelector(selector);
+        if (!element) {
+            console.warn(`Element not found: ${selector}`);
+        }
+        return element;
+    }
 
     const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
     const form = document.getElementById('registrationForm');
@@ -8,9 +18,43 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusContainer = document.getElementById('registration-status-container');
     const registerButton = document.getElementById('registerButton');
     const submitButton = document.getElementById('submitRegistration');
-    
+       // Prevent null errors with optional chaining and default values
+       function updateText(selector, text = '') {
+        const element = safeSelect(selector);
+        if (element) {
+            element.textContent = text;
+        }
+    }
+
+    function showAlert(type = 'info', message = '', details = '') {
+        if (!alertsContainer) return;
+        
+        alertsContainer.innerHTML = `
+            <div class="alert alert-${type}">
+                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+                ${message}
+                ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+            </div>
+        `;
+    }
+
     // Track registration state
     let isRegistrationInProgress = false;
+    
+    // Ensure form and submit button exist before adding listeners
+    if (form && submitButton) {
+        // Prevent default form submission
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleRegistration(e);
+        });
+
+        // Add click event to submit button
+        submitButton.addEventListener('click', function(e) {
+            e.preventDefault(); // Prevent default button click behavior
+            form.dispatchEvent(new Event('submit'));
+        });
+    }
 
     async function checkEventStatus() {
         try {
@@ -79,6 +123,42 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear previous alerts
         clearAlerts();
         
+        // Get form elements
+        const nameInput = document.getElementById('id_name');
+        const emailInput = document.getElementById('id_email');
+        
+        // Validate inputs
+        let isValid = true;
+        
+        if (!nameInput.value.trim()) {
+            nameInput.classList.add('is-invalid');
+            document.getElementById('name-error').textContent = 'Name is required';
+            isValid = false;
+        } else {
+            nameInput.classList.remove('is-invalid');
+        }
+        
+        if (!emailInput.value.trim()) {
+            emailInput.classList.add('is-invalid');
+            document.getElementById('email-error').textContent = 'Email is required';
+            isValid = false;
+        } else {
+            // Optional: Add basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value.trim())) {
+                emailInput.classList.add('is-invalid');
+                document.getElementById('email-error').textContent = 'Invalid email format';
+                isValid = false;
+            } else {
+                emailInput.classList.remove('is-invalid');
+            }
+        }
+        
+        // If validation fails, stop submission
+        if (!isValid) return;
+        // Clear previous alerts
+        clearAlerts();
+        
         // Disable submit button and show loading state
         isRegistrationInProgress = true;
         submitButton.disabled = true;
@@ -112,13 +192,32 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Handle response
             if (data.success) {
-                // Immediate success handling
                 showAlert('success', data.message);
                 
-                // Reload page or update UI
+                // Update UI based on registration status
+                if (data.status === 'waitlist') {
+                    document.getElementById('registration-status').innerHTML = 
+                        `You're on the waiting list (Position: ${data.waitlist_position})`;
+                } else {
+                    document.getElementById('registration-status').innerHTML = 
+                        "You're registered!";
+                }
+                
+<<<<<<< HEAD
+                // Update UI based on registration status
+                if (data.status === 'waitlist') {
+                    document.getElementById('registration-status').innerHTML = 
+                        `You're on the waiting list (Position: ${data.waitlist_position})`;
+                } else {
+                    document.getElementById('registration-status').innerHTML = 
+                        "You're registered!";
+                }
+                
+=======
+>>>>>>> 87a0b7bd (Refined the codebase)
                 setTimeout(() => {
                     registrationModal.hide();
-                    location.reload(); // Ensures fresh state
+                    location.reload();
                 }, 1500);
             } else {
                 // Handle specific error
@@ -202,16 +301,94 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function showAlert(type, message) {
-        if (!alertsContainer) return;
+<<<<<<< HEAD
+<<<<<<< HEAD
+
+    // Update the showAlert function to handle waitlist messages
+function showAlert(type, message, details = '') {
+    if (!alertsContainer) return;
+    
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+        ${message}
+        ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+    `;
+    alertsContainer.innerHTML = '';
+    alertsContainer.appendChild(alert);
+}
+
+// In the handleRegistration success handler:
+if (data.success) {
+    const message = data.message;
+    const details = data.status === 'waitlist' 
+        ? `Your position on the waiting list: #${data.waitlist_position}` 
+        : '';
+    showAlert('success', message, details);
+    
+    setTimeout(() => {
+        registrationModal.hide();
+        location.reload();
+    }, 2000);
+}
+=======
+    // function showAlert(type, message) {
+    //     if (!alertsContainer) return;
         
-        alertsContainer.innerHTML = '';
+    //     alertsContainer.innerHTML = '';
+        
+    //     const alert = document.createElement('div');
+    //     alert.className = `alert alert-${type}`;
+    //     alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+    //     alertsContainer.appendChild(alert);
+    // }
+
+    function showAlert(type, message, details = '') {
+        if (!alertsContainer) return;
         
         const alert = document.createElement('div');
         alert.className = `alert alert-${type}`;
-        alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
+        alert.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+            ${message}
+            ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+        `;
+        alertsContainer.innerHTML = '';
         alertsContainer.appendChild(alert);
     }
+>>>>>>> 8c524faa (Implemented waitlist registration)
+=======
+
+    // Update the showAlert function to handle waitlist messages
+function showAlert(type, message, details = '') {
+    if (!alertsContainer) return;
+    
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type}`;
+    alert.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> 
+        ${message}
+        ${details ? `<div class="mt-2 small">${details}</div>` : ''}
+    `;
+    alertsContainer.innerHTML = '';
+    alertsContainer.appendChild(alert);
+}
+
+// In the handleRegistration success handler:
+if (data.success) {
+    const message = data.message;
+    const details = data.status === 'waitlist' 
+        ? `Your position on the waiting list: #${data.waitlist_position}` 
+        : '';
+    showAlert('success', message, details);
+    
+    setTimeout(() => {
+        registrationModal.hide();
+        location.reload();
+    }, 2000);
+}
+>>>>>>> 87a0b7bd (Refined the codebase)
 
     function clearAlerts() {
         if (alertsContainer) {

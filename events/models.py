@@ -40,7 +40,16 @@ class Event(models.Model):
         ('physical', 'Physical Event'),
         ('text', 'Text-Based Event'),
     ]
-    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('canceled', 'Canceled')
+    ]
+    status = models.CharField(
+        max_length=20, 
+        choices=STATUS_CHOICES, 
+        default='draft'
+    )
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='events')
     title = models.CharField(max_length=200, help_text="Enter the event title.")
     description = models.TextField(help_text="Event description")
@@ -243,22 +252,17 @@ class Comment(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='comment_replies')
     likes = models.ManyToManyField(Profile, through='CommentLike', related_name='liked_comments')  # Profile is used here
-    level = models.PositiveIntegerField(default=0)
     is_edited = models.BooleanField(default=False)
-    path = models.TextField(editable=False, db_index=True, default="")  # Used for ordering hierarchical comments
 
     class Meta:
-        ordering = ['path']  # Orders by hierarchical path for displaying replies under parent comments
+        ordering = ['created_at']  # Order comments by creation time
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # Only set path for new comments
-            self.path = f"{self.parent.path if self.parent else ''}/{self.pk or ''}".strip('/')
-            self.level = (self.parent.level + 1) if self.parent else 0
-        else:
+        if self.pk:  # Mark as edited if it's an update
             self.is_edited = True
         super().save(*args, **kwargs)
+
 
 class CommentLike(models.Model):
     user = models.ForeignKey(Profile, on_delete=models.CASCADE)  # Profile is used here
@@ -272,34 +276,3 @@ class CommentLike(models.Model):
         return f"{self.user} likes {self.comment}"
 
 
-class Reply(models.Model):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='replies')
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_replies')
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    likes = models.ManyToManyField(Profile, through='ReplyLike', related_name='liked_replies')
-    is_edited = models.BooleanField(default=False)
-    
-    class Meta:
-        ordering = ['created_at']
-        
-    def save(self, *args, **kwargs):
-        if self.pk:  # If reply exists (being updated)
-            self.is_edited = True
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"Reply by {self.user} on {self.created_at}"
-
-
-class ReplyLike(models.Model):
-    user = models.ForeignKey(Profile, on_delete=models.CASCADE)
-    reply = models.ForeignKey(Reply, on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ['user', 'reply']
-
-    def __str__(self):
-        return f"{self.user} likes reply {self.reply.id}"

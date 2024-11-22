@@ -1,6 +1,6 @@
 #events/forms.py
 from django import forms
-from .models import Event, Comment, EventRegistration,Reply
+from .models import Event, Comment, EventRegistration
 
 
 class EventForm(forms.ModelForm):
@@ -90,10 +90,6 @@ class CommentForm(forms.ModelForm):
             raise forms.ValidationError("Comment content cannot be empty.")
         return content.strip()
 
-class ReplyForm(forms.ModelForm):
-    class Meta:
-        model = Reply
-        fields = ['content']
 
 
 class EventRegistrationForm(forms.ModelForm):
@@ -133,3 +129,20 @@ class EventRegistrationForm(forms.ModelForm):
             if current_registrations >= self.event.max_participants:
                 raise forms.ValidationError("Event has reached the maximum number of participants.")
         return super().clean()
+    def clean(self):
+        cleaned_data = super().clean()
+        if not self.event:
+            raise forms.ValidationError("Event is required")
+
+        # Check if user is already registered
+        existing_registration = EventRegistration.objects.filter(
+            event=self.event,
+            participant=self.user.profile,
+            status__in=['registered', 'waitlist']
+        ).exists()
+
+        if existing_registration:
+            raise forms.ValidationError("You are already registered for this event")
+        
+        # Remove the full event validation - we'll handle this in the view
+        return cleaned_data
