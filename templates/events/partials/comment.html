@@ -25,14 +25,16 @@
                     
                     {% if request.user.profile == comment.user %}
                     <button 
-                        onclick="deleteComment({{ comment.id }})" 
-                        class="btn btn-sm btn-outline-danger"
-                        data-comment-id="{{ comment.id }}"
-                    >
-                        <i class="fas fa-trash"></i>
-                    </button>
+    id="delete-comment-{{ comment.id }}"
+    onclick="deleteComment({{ comment.id }})" 
+    class="btn btn-sm btn-outline-danger"
+    data-comment-id="{{ comment.id }}"
+>
+    <i class="fas fa-trash"></i>
+</button>
                     {% endif %}
                     
+                
                 </div>
             </div>
             
@@ -40,7 +42,9 @@
                 <p class="mb-0">{{ comment.content }}</p>
             </div>
 
-               </div>
+           
+      
+    </div>
 </div>
 </div>
 
