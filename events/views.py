@@ -1,53 +1,40 @@
+import json
 import logging
-from notifications.bulk import notify_all_users
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
-from django.core.paginator import Paginator
-from django.utils import timezone
-from django.core.files.storage import default_storage
+from time import sleep
+
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.views.decorators.http import require_http_methods
-from profiles.models import Profile
-from .models import Event, EventRegistration, Comment
-from .forms import EventForm, CommentForm, EventRegistrationForm
-from .serializers import  CommentSerializer
-import json
-from django.core.paginator import EmptyPage, InvalidPage
-from django.template.loader import render_to_string
-from django.db.models import Count
-from django.utils.html import strip_tags
-from django.core.mail import send_mail
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.http import HttpResponseForbidden
-from django.conf import settings
-from django.db.models import Max
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.cache import cache
-from time import sleep
-from django.db import transaction, DatabaseError
-from django.db.models import F, Q, Max
-from django.views import View
+from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
+from django.core.mail import send_mail
+from django.core.paginator import Paginator, EmptyPage, InvalidPage
+from django.db import DatabaseError, transaction
+from django.db.models import Count, F, Max, Q
+from django.http import HttpResponseForbidden, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy
+from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.html import strip_tags
+from django.views import View
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.generic import CreateView, DeleteView, DetailView, ListView
+from django.views.generic.edit import FormMixin
 
-
+from notifications.bulk import notify_all_users
+from profiles.models import Profile
+from .forms import CommentForm, EventForm, EventRegistrationForm
+from .models import Comment, Event, EventRegistration
+from .serializers import CommentSerializer
 
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# views.py
-from django.views.generic import ListView, DetailView, CreateView, DeleteView
-from django.views.generic.edit import FormMixin
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views import View
-from django.urls import reverse_lazy
-from django.http import JsonResponse
-from django.template.loader import render_to_string
-from django.core.paginator import Paginator, EmptyPage, InvalidPage
-from django.db import transaction
-from django.contrib import messages
 
 class EventListView(LoginRequiredMixin, ListView):
     model = Event
