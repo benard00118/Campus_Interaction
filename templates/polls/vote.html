@@ -1053,6 +1053,16 @@
 .announcement i {
     font-size: 1.1rem;
 }
+.announcement-archived {
+    background-color: #F5F3FF;
+    border-color: #C4B5FD;
+    color: #6D28D9;
+}
+
+.announcement-archived i {
+    color: #6D28D9;
+}
+
 
 /* Status-specific styles */
 .announcement-expired {
@@ -1215,25 +1225,38 @@ font-size: 12px;
     <div class="col-md-6">
 
         <div class="poll-form">
-          <div class="announcement {% if not poll.is_active %}announcement-expired
-              {% elif has_reached_vote_limit %}announcement-limit-reached
-              {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}announcement-can-cancel
-              {% elif poll.multi_option and poll.is_active %}announcement-multi
-              {% else %}announcement-default{% endif %}">  
-            <p>
-                {% if not poll.is_active %}
-                    <i class="fas fa-clock"></i> This poll has expired and voting is closed.
-                {% elif has_reached_vote_limit %}
-                    <i class="fas fa-exclamation-circle"></i> You've reached the maximum number of votes ({{ poll.attempts }}/2).
-                {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}
-                    <i class="fas fa-undo"></i> You can cancel your vote within 30 minutes. {{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.
-                {% elif poll.multi_option and poll.is_active %}
-                    <i class="fas fa-check-double"></i> Multiple choices allowed - select all that apply.
-                {% else %}
-                    <i class="fas fa-vote-yea"></i> You have {{ remaining_attempts }} voting attempt{{ remaining_attempts|pluralize }} available.
-                {% endif %}
-            </p>
-        </div>
+          <div class="announcement 
+          {% if not poll.is_active %}
+              announcement-expired
+          {% elif poll.is_archived %}
+              announcement-archived
+          {% elif has_reached_vote_limit %}
+              announcement-limit-reached
+          {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}
+              announcement-can-cancel
+          {% elif poll.multi_option and poll.is_active %}
+              announcement-multi
+          {% else %}
+              announcement-default
+          {% endif %}
+      ">
+          <p>
+              {% if not poll.is_active %}
+                  <i class="fas fa-clock"></i> This poll has expired and voting is closed.
+              {% elif poll.is_archived %}
+                  <i class="fas fa-archive"></i> This poll is archived and no longer available for voting.
+              {% elif has_reached_vote_limit %}
+                  <i class="fas fa-exclamation-circle"></i> You've reached the maximum number of votes ({{ poll.attempts }}/2).
+              {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}
+                  <i class="fas fa-undo"></i> You can cancel your vote within 30 minutes. {{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.
+              {% elif poll.multi_option and poll.is_active %}
+                  <i class="fas fa-check-double"></i> Multiple choices allowed - select all that apply.
+              {% else %}
+                  <i class="fas fa-vote-yea"></i> You have {{ remaining_attempts }} voting attempt{{ remaining_attempts|pluralize }} available.
+              {% endif %}
+          </p>
+      </div>
+      
       <form method="post" id="vote-form" onsubmit="return validateForm();" data-poll-type="{% if poll.poll_type == 'question' %}question{% else %}opinion{% endif %}">
         {% csrf_token %}
         {% for option in poll.options.all %}
