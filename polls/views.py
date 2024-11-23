@@ -544,10 +544,21 @@ def poll_results(request, poll_id):
     top_voted_option = None
     max_votes = 0
 
+    user_selected_options = []  # To track options selected by the current user
+    selected_options_percentages = []  # To store percentages of user's selected options
+
     # Populate results and find the top-voted option
     for option in options:
         is_correct = option.is_correct
         votes = option.votes.count()
+        percentage = (votes / total_votes * 100) if total_votes > 0 else 0
+
+        # If the user is logged in, check their votes
+        if request.user.is_authenticated:
+            user_voted = option.votes.filter(user=request.user).exists()
+            if user_voted:
+                user_selected_options.append(option.option_text)
+                selected_options_percentages.append(percentage)
 
         # Get scored users if the poll is public
         scored_users = (
@@ -561,7 +572,6 @@ def poll_results(request, poll_id):
         if not is_correct:
             failed_users = option.votes.values_list("user__username", flat=True)
 
-        percentage = (votes / total_votes * 100) if total_votes > 0 else 0
         results.append(
             {
                 "option_text": option.option_text,
@@ -578,6 +588,13 @@ def poll_results(request, poll_id):
         if votes > max_votes:
             max_votes = votes
             top_voted_option = option.option_text
+
+    # Calculate average percentage of selected options
+    avg_percentage = (
+        sum(selected_options_percentages) / len(selected_options_percentages)
+        if selected_options_percentages
+        else None
+    )
 
     # Generate the QR code
     result_link = (
@@ -596,10 +613,11 @@ def poll_results(request, poll_id):
         "top_voted_option": top_voted_option,
         "qr_code_url": result_qr_code_url,
         "poll_link": result_link,
+        "user_selected_options": user_selected_options,
+        "avg_percentage": avg_percentage,  # Add average percentage to context
     }
 
     return render(request, "polls/poll_results.html", context)
-
 
 @login_required
 def add_comment(request, poll_id):
