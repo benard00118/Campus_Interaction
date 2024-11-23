@@ -99,8 +99,8 @@
 
         <!-- No polls message -->
         <ul class="poll-list" id="pollList">
-          {% if polls %} {% for poll in polls %}
-           {% if poll.is_public and poll.is_active and not poll.is_archived %}
+          {% if polls %} {% for poll in polls %} 
+          {% if poll.is_public and poll.is_active and not poll.is_archived %}
           <!-- Check if the poll is public and active -->
           <li class="poll-item" data-poll-type="{{ poll.poll_type }}">
             <div class="poll-content">
@@ -166,7 +166,8 @@
               </h2>
               {% if poll.description %}
               <p class="poll-description">
-                Description - {{ poll.description|slice:":40" }} {% if poll.description|length > 40 %}...{% endif %}
+                Description - {{ poll.description|slice:":40" }} 
+                {% if poll.description|length > 40 %}...{% endif %}
               </p>
               {% endif %}
               <p class="poll-type">Type: {{ poll.get_poll_type_display }}</p>
@@ -228,7 +229,49 @@
                   transform: scale(1.1);
                   text-shadow: 0 2px 5px rgba(0, 91, 179, 0.5);
                 }
+                .date-reaction{
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                }
+                .date {
+                    display: flex;
+                    align-items: center;
+                    font-size: 0.9rem;
+                    color: #6c757d;
+                    margin: 8px 0;
+                    padding: 4px 8px;
+                    background-color: #f8f9fa;
+                    border-radius: 4px;
+                    width: fit-content;
+                  }
+
+                  .date i {
+                    margin-right: 4px;
+                    color: #007bff;
+                  }
+
+                  /* Hover effect */
+                  .date:hover {
+                    background-color: #e9ecef;
+                    transition: background-color 0.2s ease;
+                  }
+
+                  /* Optional: Add tooltip on hover */
+                  .date[title] {
+                    cursor: help;
+                  }
+
+                  /* Responsive design */
+                  @media (max-width: 768px) {
+                    .date {
+                      font-size: 0.8rem;
+                      padding: 3px 6px;
+                    }
+                  }
+
               </style>
+              <div class="date-reaction">
               <div class="reaction_views_comment">
                 <small>
                   <i class="fa-regular fa-eye"></i> {{poll.view_count}}
@@ -239,7 +282,7 @@
                   style="cursor: pointer"
                 >
                   <i
-                    class="fa-regular fa-heart {% if poll.id in liked_polls_set %} liked {% else %} unliked {% endif %}"
+                    class="fa-solid fa-heart {% if poll.id in liked_polls_set %} liked {% else %} unliked {% endif %}"
                     style="color: {% if poll.id in liked_polls_set %} red {% else %} black {% endif %};"
                   ></i>
                   <span class="like-count">{{ poll.poll_likes.count }}</span>
@@ -249,12 +292,19 @@
                   onclick="window.location.href='{% url 'polls:vote_poll' poll.id %}'"
                   style="cursor: pointer"
                 >
-                  <i class="fa-regular fa-comment"></i>
+                  <i class="fa-solid fa-comment"></i>
                   <span id="comment-count-{{ poll.id }}"
                     >{{ poll.comment_count }}</span
                   >
                 </small>
               </div>
+              <div class="date">
+                <i class="far fa-clock"></i>
+                {{ poll.created_at|date:"H:i" }}
+                <i class="far fa-calendar-alt" style="margin-left: 8px;"></i>
+                {{ poll.created_at|date:"d.m.Y" }}
+              </div>
+            </div>
             </div>
           </li>
           {% endif %} {% endfor %} {% else %}
@@ -341,10 +391,10 @@
           document.addEventListener("DOMContentLoaded", function () {
             const pollList = document.getElementById("pollList");
             const loadingSpinner = document.getElementById("loadingSpinner");
-            let currentPollIndex = 0; // Track the current index of polls being displayed
+            let currentPollIndex = 0;
             const pollItems = document.querySelectorAll(".poll-item");
             const totalPolls = pollItems.length;
-            const loadBatchSize = 3; // Load 3 polls at a time
+            const loadBatchSize = 3;
 
             // Hide all polls initially
             function hideAllPolls() {
@@ -356,51 +406,59 @@
               hideAllPolls();
               for (let i = 0; i < Math.min(loadBatchSize, totalPolls); i++) {
                 pollItems[i].style.display = "block";
-                currentPollIndex = i + 1; // Update the current index to reflect the loaded polls
               }
+              currentPollIndex = loadBatchSize - 1; // Set to index of last visible poll
             }
 
-            // Load more polls when the user scrolls
+            // Load more polls when triggered
             function loadMorePolls() {
-              loadingSpinner.style.display = "flex"; // Show the loading spinner
+              if (currentPollIndex >= totalPolls - 1) return; // Stop if we've shown all polls
 
-              // Simulate a loading delay (e.g., fetching from server)
+              loadingSpinner.style.display = "flex";
+
               setTimeout(() => {
+                const startIndex = currentPollIndex + 1;
                 const endIndex = Math.min(
-                  currentPollIndex + loadBatchSize,
+                  startIndex + loadBatchSize,
                   totalPolls
-                ); // Load only the remaining polls
-                // Show the polls in the current batch
-                for (let i = currentPollIndex; i < endIndex; i++) {
+                );
+
+                // Show the next batch of polls
+                for (let i = startIndex; i < endIndex; i++) {
                   pollItems[i].style.display = "block";
                 }
 
-                currentPollIndex = endIndex; // Update the index to reflect the loaded polls
-                loadingSpinner.style.display = "none"; // Hide the loading spinner
+                currentPollIndex = endIndex - 1; // Update to new last visible poll index
+                loadingSpinner.style.display = "none";
 
-                // If all polls are shown, remove the scroll event listener to stop loading more
-                if (currentPollIndex >= totalPolls) {
+                // Remove scroll listener if all polls are shown
+                if (currentPollIndex >= totalPolls - 1) {
                   window.removeEventListener("scroll", checkScrollPosition);
                 }
-              }, 2000); // Adjust the delay time (1 second for demo)
+              }, 2000);
             }
 
-            // Check the scroll position to determine when to load more polls
-            function checkScrollPosition() {
-              const { scrollTop, scrollHeight, clientHeight } =
-                document.documentElement;
+            // Check if the last visible poll is in view
+            function isLastVisiblePollInView() {
+              const lastVisiblePoll = pollItems[currentPollIndex];
+              if (!lastVisiblePoll) return false;
 
-              // If user has scrolled near the bottom of the page and there are more polls to load
-              if (
-                scrollTop + clientHeight >= scrollHeight - 100 &&
-                currentPollIndex < totalPolls
-              ) {
+              const rect = lastVisiblePoll.getBoundingClientRect();
+              return (
+                rect.top >= 0 &&
+                rect.bottom <=
+                  (window.innerHeight || document.documentElement.clientHeight)
+              );
+            }
+
+            // Check scroll position and load more if needed
+            function checkScrollPosition() {
+              if (isLastVisiblePollInView()) {
                 loadMorePolls();
               }
             }
 
             showInitialPolls();
-
             window.addEventListener("scroll", checkScrollPosition);
           });
         </script>
@@ -426,7 +484,45 @@
           margin-left: 5px;
         }
       </style>
+      <style>
+        .quick-nav-header {
+          background: linear-gradient(to right, #f8f9fa, #e9ecef);
+          padding: 15px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          border-left: 4px solid #007bff;
+        }
+
+        .quick-nav-title {
+          color: #2c3e50;
+          margin: 0;
+          font-size: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .quick-nav-title i {
+          color: #007bff;
+        }
+
+        .quick-nav-subtitle {
+          color: #6c757d;
+          margin: 5px 0 0 0;
+          font-size: 0.9rem;
+          font-style: italic;
+        }
+      </style>
       <div class="sidebar">
+        <div class="quick-nav-header">
+          <h3 class="quick-nav-title">
+            <i class="fa-solid fa-bolt"></i> Quick Navigation
+          </h3>
+          <p class="quick-nav-subtitle">
+            Access popular and archived content instantly
+          </p>
+        </div>
+
         <h4><i class="fa-solid fa-star"></i> Popular Polls</h4>
         <ul class="popular-polls">
           {% if popular_polls %} {% for poll in popular_polls %}
@@ -613,14 +709,39 @@
     const pollItems = pollList.querySelectorAll(".poll-item");
     const pollTypeButtons = document.querySelectorAll(".poll-type-btn");
 
-    // Highlight function
-    function highlightText(text, term) {
-      if (!term) return text;
-      const regex = new RegExp(`(${term})`, "gi");
-      return text.replace(
+    // Highlight function that preserves links
+    function highlightText(element, searchTerm) {
+      if (!searchTerm) return;
+
+      const regex = new RegExp(`(${searchTerm})`, "gi");
+      const container = element.cloneNode(true);
+
+      // Store original link
+      const originalLink = container.querySelector("a");
+      const linkHref = originalLink ? originalLink.getAttribute("href") : null;
+      const arrowSpan = container.querySelector(".arrow-bounce");
+
+      // Create text content without the arrow
+      let textContent = element.textContent.replace("→", "").trim();
+
+      // Highlight the text while preserving the link
+      const highlightedText = textContent.replace(
         regex,
         '<span class="highlight" style="background-color: yellow;">$1</span>'
       );
+
+      // Reconstruct the content with the link preserved
+      if (linkHref) {
+        container.innerHTML = `
+        <a href="${linkHref}" aria-hidden="true"></a>
+        ${arrowSpan ? arrowSpan.outerHTML : ""}
+        ${highlightedText}
+      `;
+      } else {
+        container.innerHTML = highlightedText;
+      }
+
+      return container;
     }
 
     // Combined filtering function
@@ -633,12 +754,26 @@
       let visiblePollsCount = 0;
 
       pollItems.forEach(function (pollItem) {
-        // Reset previous highlights
+        // Get elements
         const titleEl = pollItem.querySelector(".poll-title");
         const descriptionEl = pollItem.querySelector(".poll-description");
 
-        titleEl.innerHTML = titleEl.textContent;
-        if (descriptionEl) descriptionEl.innerHTML = descriptionEl.textContent;
+        // Store original content if not already stored
+        if (!titleEl.hasAttribute("data-original")) {
+          titleEl.setAttribute("data-original", titleEl.innerHTML);
+          if (descriptionEl) {
+            descriptionEl.setAttribute(
+              "data-original",
+              descriptionEl.innerHTML
+            );
+          }
+        }
+
+        // Reset to original content
+        titleEl.innerHTML = titleEl.getAttribute("data-original");
+        if (descriptionEl) {
+          descriptionEl.innerHTML = descriptionEl.getAttribute("data-original");
+        }
 
         const title = titleEl.textContent.toLowerCase();
         const description = descriptionEl
@@ -649,11 +784,9 @@
         // Match search only on title and description
         const matchesSearch =
           title.includes(searchTerm) || description.includes(searchTerm);
-
         const matchesPollType = activePollType
           ? pollTypeValue === activePollType
           : true;
-
         const isVisible = matchesSearch && matchesPollType;
 
         pollItem.style.display = isVisible ? "block" : "none";
@@ -661,15 +794,17 @@
         if (isVisible) {
           visiblePollsCount++;
 
-          // Highlight matching text
-          if (title.includes(searchTerm)) {
-            titleEl.innerHTML = highlightText(titleEl.textContent, searchTerm);
+          // Highlight matching text while preserving links
+          if (searchTerm && title.includes(searchTerm)) {
+            const highlightedTitle = highlightText(titleEl, searchTerm);
+            if (highlightedTitle)
+              titleEl.innerHTML = highlightedTitle.innerHTML;
           }
-          if (descriptionEl && description.includes(searchTerm)) {
-            descriptionEl.innerHTML = highlightText(
-              descriptionEl.textContent,
-              searchTerm
-            );
+
+          if (searchTerm && descriptionEl && description.includes(searchTerm)) {
+            const highlightedDesc = highlightText(descriptionEl, searchTerm);
+            if (highlightedDesc)
+              descriptionEl.innerHTML = highlightedDesc.innerHTML;
           }
         }
       });
@@ -682,15 +817,15 @@
           const noPolls = document.createElement("div");
           noPolls.id = "no-polls-message-found";
           noPolls.innerHTML = `
-                    <i class="fas fa-poll" aria-hidden="true" style="color: #007bff; font-size: 30px; margin-bottom: 10px"></i>
-                    <b>No Polls Found.</b>
-                `;
+          <i class="fas fa-poll" aria-hidden="true" style="color: #007bff; font-size: 30px; margin-bottom: 10px"></i>
+          <b>No Polls Found.</b>
+        `;
           noPolls.style.cssText = `
-                    text-align: center;
-                    margin: 60px 0;
-                    font-size: 24px;
-                    color: black;
-                `;
+          text-align: center;
+          margin: 60px 0;
+          font-size: 24px;
+          color: black;
+        `;
           pollList.appendChild(noPolls);
         }
       } else if (existingNoPolls) {
@@ -704,13 +839,8 @@
     // Poll type filter buttons
     pollTypeButtons.forEach((button) => {
       button.addEventListener("click", function () {
-        // Remove active class from all buttons
         pollTypeButtons.forEach((btn) => btn.classList.remove("active"));
-
-        // Add active class to clicked button
         this.classList.add("active");
-
-        // Apply filters
         applyFilters();
       });
     });
