@@ -402,15 +402,16 @@
     <h4><i class="fa-solid fa-star"></i> Popular Polls</h4>
     <ul class="popular-polls">
       {% if popular_polls %} {% for poll in popular_polls %}
-       {% if poll.is_active and not poll.is_expired %}
+       
       <li>
         <a href="{% url 'polls:vote_poll' poll.id %}">
           <i class="fas fa-star" aria-hidden="true"></i>
-          {{ poll.title }}
+          {{ poll.title|slice:"12" }}
+          {% if poll.title|length > 12 %}...{%endif %}
           <span class="view-count">({{ poll.view_count }} views)</span>
         </a>
       </li>
-      {% endif %} {% endfor %} {% else %}
+      {% endfor %} {% else %}
       <li class="no-polls-populat" style="text-align: center">
         <i
           class="fas fa-poll"
