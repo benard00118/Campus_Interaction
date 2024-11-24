@@ -53,5 +53,5 @@
 <!--=============== PROFILE ===============-->
 <li>
   {% url 'profile' as profile_url %}
-  <a href="{{ profile_url }}" class="nav__link {% if request.path == profile_url %}active{% endif %}">Profile</a>
-</li> 
+  <a href="{{ profile_url }}" class="nav__link {% if request.path|slice:":8" == '/profile' %}active{% endif %}">Profile</a>
+</li>
