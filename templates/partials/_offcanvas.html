@@ -54,7 +54,7 @@
     {% if user.is_authenticated %}
     <div class="offcanvas__auth1">
       <!--=============== FORUM ===============-->
-      <a href="#">Forum</a>
+      <a href="{% url 'forums:forum_list' %}">Forum</a>
       <!--=============== MESSAGING ===============-->
       <a href="{% url 'inbox' %}" class="{% if request.path == '/inbox/' or '/chat/' in request.path %} active {% endif %}">
         Messaging
