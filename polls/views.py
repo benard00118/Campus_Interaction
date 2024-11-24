@@ -61,13 +61,13 @@ def base_poll(request):
         no_polls_message = "No polls found matching your search criteria."
 
     # Get popular polls
-    popular_polls = (
-        Poll.objects.filter(view_count__gt=10)
-        .exclude(expiration_time__lt=current_time)
-        .filter(Q(expiration_time__lt=current_time) & Q(allow_expiration=True))
-        .distinct()
-        .order_by("-view_count")
-    )
+    popular_polls = Poll.objects.filter(
+    view_count__gt=10
+    ).filter(
+        Q(expiration_time__gte=current_time) | Q(allow_expiration=False)
+    ).exclude(
+        expiration_time__lt=current_time  # Ensure expired polls are excluded
+    ).distinct().order_by("-view_count")
 
     # Get liked polls
     liked_polls = Like.objects.filter(
@@ -109,13 +109,13 @@ def base_poll(request):
 def search_poll(request, title):
     polls = Poll.objects.filter(title__iexact=title)
     current_time = timezone.now()
-    popular_polls = (
-        Poll.objects.filter(view_count__gt=10)
-        .exclude(expiration_time__lt=current_time)
-        .filter(Q(expiration_time__lt=current_time) & Q(allow_expiration=True))
-        .distinct()
-        .order_by("-view_count")
-    )
+    popular_polls = Poll.objects.filter(
+    view_count__gt=1
+    ).filter(
+        Q(expiration_time__gte=current_time) | Q(allow_expiration=False)
+    ).exclude(
+        expiration_time__lt=current_time  # Ensure expired polls are excluded
+    ).distinct().order_by("-view_count")
     archived_polls = Poll.objects.filter(
         Q(expiration_time__lt=current_time) & Q(allow_expiration=True)
     ).distinct()
@@ -723,13 +723,13 @@ def archived_polls_view(request):
     liked_polls_set = set()
 
     # Get popular polls
-    popular_polls = (
-        Poll.objects.filter(view_count__gt=10)
-        .exclude(expiration_time__lt=current_time)
-        .filter(Q(expiration_time__lt=current_time) & Q(allow_expiration=True))
-        .distinct()
-        .order_by("-view_count")
-    )
+    popular_polls = Poll.objects.filter(
+    view_count__gt=10
+    ).filter(
+        Q(expiration_time__gte=current_time) | Q(allow_expiration=False)
+    ).exclude(
+        expiration_time__lt=current_time  # Ensure expired polls are excluded
+    ).distinct().order_by("-view_count")
 
     # Check if the user is authenticated and get liked polls
     if request.user.is_authenticated:
