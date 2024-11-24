@@ -165,13 +165,13 @@
                 {{ poll.title }}
               </h2>
               {% if poll.description %}
-              <p class="poll-description">
+              <p class="poll-description" style="margin-bottom: -1px;">
                 Description - {{ poll.description|slice:":40" }} 
                 {% if poll.description|length > 40 %}...{% endif %}
               </p>
               {% endif %}
               <p class="poll-type">Type: {{ poll.get_poll_type_display }}</p>
-              <p class="poll-status">
+              <p class="poll-status" style="margin-top: -5px;">
                 {% if poll.is_active and not poll.is_expired %}
                 <span class="active">Active</span>
                 {% if poll.expiration_time %}
@@ -233,6 +233,8 @@
                   display: flex;
                   justify-content: space-between;
                   align-items: center;
+                  border-top: 1px solid #ccc;
+                  margin-top: -5px;
                 }
                 .date {
                     display: flex;

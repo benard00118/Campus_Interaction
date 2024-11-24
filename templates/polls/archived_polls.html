@@ -216,7 +216,7 @@
           {% if poll.title|length > 20 %}...{%endif %}
         </h2>
         {% if poll.description %}
-        <p class="poll-description">
+        <p class="poll-description" style="margin-bottom: -1px;">
           Description - {{ poll.description|slice:":40" }} 
           {% if poll.description|length > 40 %}...{% endif %}
         </p>
@@ -242,10 +242,12 @@
             text-shadow: 0 2px 5px rgba(0, 91, 179, 0.5);
           }
           .date-reaction{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-top: 1px solid #ccc;
+              margin-top: -5px;
+            }
           .date {
               display: flex;
               align-items: center;
