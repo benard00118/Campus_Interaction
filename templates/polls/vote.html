@@ -784,7 +784,7 @@
   .quoted-description {
     white-space: pre-wrap;
     position: relative;
-    padding-left: 40px;
+    padding-left: 15px;
     font-family: "Arial", sans-serif;
     font-size: 16px;
     line-height: 1.5;
@@ -796,27 +796,6 @@
     color: #333;
   }
 
-  .quoted-description::before {
-    content: "\f10d"; /* FontAwesome quote-left icon */
-    font-family: "Font Awesome 5 Free";
-    font-weight: 900;
-    position: absolute;
-    left: 10px;
-    top: 0;
-    font-size: 20px;
-    color: gray;
-  }
-
-  .quoted-description::after {
-    content: "\f10e";
-    font-family: "Font Awesome 5 Free";
-    font-weight: 900;
-    font-size: 20px;
-    color: gray;
-    margin-left: 5px;
-    display: inline-block;
-    vertical-align: top;
-  }
   .created-by {
     display: flex;
     align-items: center;
@@ -1246,7 +1225,7 @@ font-size: 12px;
               {% elif poll.is_archived %}
                   <i class="fas fa-archive"></i> This poll is archived and no longer available for voting.
               {% elif has_reached_vote_limit %}
-                  <i class="fas fa-exclamation-circle"></i> You've reached the maximum number of votes ({{ poll.attempts }}/2).
+                  <i class="fas fa-exclamation-circle"></i>You've reached the maximum number of votes ({% firstof poll.attempts|default:2 2 %}/2).
               {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}
                   <i class="fas fa-undo"></i> You can cancel your vote within 30 minutes. {{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.
               {% elif poll.multi_option and poll.is_active %}
