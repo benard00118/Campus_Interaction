@@ -22,7 +22,7 @@
   {% url 'polls:add_polls' as add_polls_url %}
   {% url 'polls:user_dashboard' as user_dashboard_url %}
 
-  <a class="dropdown-toggle dropdown__link {% if 'polls' in request.resolver_match.namespace %}active{% endif %}">
+  <a class="dropdown-toggle1 dropdown__polls  {% if 'polls' in request.resolver_match.namespace %}active{% endif %}">
     Polls
   </a>
   <ul class="dropdown dropdown-menu-list">
