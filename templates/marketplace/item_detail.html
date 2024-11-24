@@ -1,6 +1,7 @@
 {% extends "base.html" %} {% block title %} {{ item.title}} details |
 MarketPlace{% endblock %}{% block content %} {% load static %}
 <link rel="stylesheet" href="{% static '/css/marketplace/add_items.css' %}" />
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 <link
   rel="stylesheet"
   href="https://cdnjs.cloudflare.com/ajax/libs/OwlCarousel2/2.3.4/assets/owl.carousel.min.css"
@@ -497,8 +498,8 @@ MarketPlace{% endblock %}{% block content %} {% load static %}
                   color: red;
                 }
 
-                .heart-icon .fa-heart-o {
-                  color: #ccc;
+                .heart-icon .bxs-heart {
+                  color: #666;
                 }
 
                 .heart-icon .fa-heart {
@@ -517,8 +518,7 @@ MarketPlace{% endblock %}{% block content %} {% load static %}
                     {% if item.id in liked_items %}
                     <i class="fa fa-heart" aria-hidden="true"></i>
                     {% else %}
-                    <i class="fa fa-heart-o" aria-hidden="true"></i>
-
+                    <i class='bx bxs-heart'></i>
                     {% endif %}
                   </span>
                 </a>
@@ -565,7 +565,7 @@ MarketPlace{% endblock %}{% block content %} {% load static %}
                             likeButton.classList.add("liked");
                           } else {
                             likeIcon.classList.remove("fa-heart");
-                            likeIcon.classList.add("fa-heart-o");
+                            likeIcon.classList.add("bxs-heart");
                             likeButton.classList.remove("liked");
                           }
                         })
