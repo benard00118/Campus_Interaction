@@ -1225,7 +1225,7 @@ font-size: 12px;
               {% elif poll.is_archived %}
                   <i class="fas fa-archive"></i> This poll is archived and no longer available for voting.
               {% elif has_reached_vote_limit %}
-                  <i class="fas fa-exclamation-circle"></i>You've reached the maximum number of votes ({% firstof poll.attempts|default:2 2 %}/2).
+              <i class="fas fa-exclamation-circle"></i>You've reached the maximum number of votes ({% if poll.attempts > 2 %}2{% else %}{{ poll.attempts }}{% endif %}/2).
               {% elif user_vote and poll.poll_type == 'opinion' and user_vote.created_at >= time_limit and poll.attempts < 2 %}
                   <i class="fas fa-undo"></i> You can cancel your vote within 30 minutes. {{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.
               {% elif poll.multi_option and poll.is_active %}

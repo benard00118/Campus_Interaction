@@ -220,14 +220,6 @@
               style="{% if form.instance.option_image %}display: inline{% else %}display: none{% endif %}"
               onclick="deleteFile(this)">Delete</span>
     </div>
-
-    <div class="delete-image-checkbox">
-      <label>
-          <input type="checkbox" name="form-{{ forloop.counter0 }}-remove_image" value="1">
-          Remove this image
-      </label>
-  </div>
-
     <div class="correct-answer"
          style="{% if poll_form.instance.poll_type != 'question' %}display: none;{% endif %}">
         <label class="correct-answer-label">
@@ -987,6 +979,4 @@
         }
     });
 </script>
-
-
 {% endblock %}
