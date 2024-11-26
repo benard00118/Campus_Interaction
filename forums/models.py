@@ -6,6 +6,7 @@ from django.views.generic.edit import CreateView
 from django.views import View
 from datetime import timedelta
 from django.utils import timezone
+from django.conf import settings
 
 class Forum(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -28,17 +29,13 @@ class Forum(models.Model):
         return self.name
     def member_count(self):
         return self.members.count()
-    # Check if forum is 'new' (created within the last 7 days)
     def is_new(self):
         return self.created_at >= timezone.now() - timedelta(days=7)
 
-    # Check if forum is 'active' (has posts within the last 30 days)
     def is_active(self):
-        # Assuming your Post model has a `created_at` field
-        last_post = self.posts.last()
-        if last_post:
-            return last_post.created_at >= timezone.now() - timedelta(days=30)
-        return False
+        recent_posts = self.forums_posts.filter(created_at__gte=timezone.now() - timedelta(days=30))
+        return recent_posts.exists()
+
 
 class ForumMembership(models.Model):
     ROLE_CHOICES = [
@@ -54,13 +51,72 @@ class ForumMembership(models.Model):
     class Meta:
         unique_together = ('user', 'forum')
 
-class ForumCreateView(LoginRequiredMixin, CreateView):
-    model = Forum
-    template_name = 'forums/forum_form.html'
-    fields = ['name', 'description']
-    success_url = reverse_lazy('forum_list')  # Redirect to the forum list after creation
+class LeftForumMembership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE)
+    left_at = models.DateTimeField(auto_now_add=True)
 
-    def form_valid(self, form):
-        # Set the current user as the creator of the forum
-        form.instance.created_by = self.request.user
-        return super().form_valid(form)
+    def __str__(self):
+        return f"{self.user.username} left {self.forum.name} on {self.left_at}"
+
+
+class Post(models.Model):
+    forum = models.ForeignKey('Forum', on_delete=models.CASCADE, related_name='forums_posts')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='forums_user_posts')
+    content = models.TextField()
+    image = models.ImageField(upload_to='forum_post_images/', blank=True, null=True)
+    video = models.FileField(upload_to='forum_post_videos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Post by {self.user.username} in {self.forum.name}"
+
+    def get_media_url(self):
+        if self.image:
+            return self.image.url
+        elif self.video:
+            return self.video.url
+        return None
+
+    def like_count(self):
+        return self.likes.count()
+    def view_count(self):
+        return self.views.count()
+
+class Like(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='forum_likes'
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='likes'  
+    )
+    liked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'post')
+
+    def __str__(self):
+        return f"{self.user.username} liked Post {self.post.id}"
+
+class PostView(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='forum_post_views'  
+    )
+    post = models.ForeignKey(
+        Post, 
+        on_delete=models.CASCADE, 
+        related_name='views'
+    )
+    viewed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'post') 
+
+    def __str__(self):
+        return f"Post {self.post.id} viewed by {self.user.username} at {self.viewed_at}"
