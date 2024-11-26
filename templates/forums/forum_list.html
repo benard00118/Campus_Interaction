@@ -81,7 +81,7 @@
     
     </div>
     <div class="forum-card-content">
-      <h2 class="forum-name">{{ forum.name }}</h2>
+      <h2 class="forum-name">{{ forum.name|truncatewords:20 }}</h2>
       <p class="forum-description">
         {{ forum.description|truncatewords:20 }}
       </p>
@@ -92,7 +92,7 @@
         </div>
         <div class="stat">
           <i class="fas fa-comments"></i>
-          <span>150 posts</span>
+          <span>{{forum.forum_post_count}} posts</span>
         </div>
       </div>
       <div class="forum-meta">
