@@ -6,10 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}CampHub{% endblock %}</title>
     
+    
     <!-- CSRF Token Meta -->
     {% csrf_token %}
     <meta name="csrf-token" content="{{ csrf_token }}" />
 
+    
+  
     <!-- Third-party CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/mdb-ui-kit/7.1.0/mdb.min.css" rel="stylesheet" />
@@ -24,9 +27,10 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Host+Grotesk:ital,wght@0,300..800;1,300..800&family=Mansalva&family=Oleo+Script:wght@400;700&family=Pacifico&display=swap" rel="stylesheet" />
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static '/css/marketplace/add_items.css' %}" />
-    
+    <link rel="stylesheet" href="{% static 'css/marketplace/add_items.css' %}" />
     <link rel="stylesheet" href="{% static 'css/base.css' %}" />
+    <!-- Favicon.ico -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
   </head>
 
   <body>
@@ -38,7 +42,6 @@
     {% include 'partials/_offcanvas.html' %}
     {% include 'partials/_header.html' %}
     {% include 'partials/_search.html' %}
-
     <!-- Main Content -->
     <div class="container1">
       {% include 'partials/_messages.html' %}
