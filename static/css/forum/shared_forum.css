@@ -499,7 +499,7 @@
   }
 }
 .btn-modern {
-  background-color: #3498db;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -515,7 +515,7 @@
 }
 
 .btn-modern:hover {
-  background-color: #2980b9;
+  background-color: var(--primary-hover);
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
