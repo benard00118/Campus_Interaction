@@ -27,6 +27,21 @@
   color: #ffffff;
 }
 
+/* Forum a styling */
+.header__right__auth a {
+  border-bottom: 2px solid transparent;
+  max-width: fit-content;
+  text-decoration: none;
+  transition: border-bottom 0.3s ease; 
+}
+
+.header__right__auth a.active,
+.header__right__auth a:hover {
+  border-bottom: 2px solid red; 
+}
+
+
+
 .header__logo a {
   display: flex;
   align-items: center;
@@ -443,4 +458,21 @@
 }
 .suggestion-category ul li:last-child {
   border-bottom: none;
+}
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
