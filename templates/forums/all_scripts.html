@@ -1,0 +1,522 @@
+{% load static %}
+<script>
+  function toggleReplyForm(commentId) {
+    const replyForm = document.getElementById(`reply-form-${commentId}`);
+    replyForm.style.display =
+      replyForm.style.display === "none" ? "block" : "none";
+  }
+
+  function likeComment(commentId) {
+    fetch(`/forums/comments/${commentId}/like/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+      },
+    })
+      .then((response) => {
+        if (response.ok) {
+          location.reload();
+        }
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+</script>
+<script src="{% static 'js/forum/delete_share.js' %}"></script>
+<script src="{% static 'js/forum/viewing_images.js' %}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const saveButton = document.getElementById("download_image_video");
+    const mediaContainer = document.querySelector(".media-container");
+
+    // Function to generate a random filename starting with camphub
+    function generateRandomFilename(type) {
+      const randomString = Math.random().toString(36).substring(2, 10);
+      return `camphub_${type}_${randomString}`;
+    }
+
+    if (saveButton && mediaContainer) {
+      saveButton.addEventListener("click", () => {
+        let downloadUrl = "";
+        let fileName = "";
+        // Check for image
+        const image = mediaContainer.querySelector("img");
+        if (image) {
+          downloadUrl = image.src;
+          fileName = generateRandomFilename("image") + ".jpg";
+        }
+        // Check for video
+        const video = mediaContainer.querySelector("video");
+        if (video) {
+          const source = video.querySelector("source");
+          if (source) {
+            downloadUrl = source.src;
+            fileName = generateRandomFilename("video") + ".mp4";
+          }
+        }
+        // If media found, trigger download
+        if (downloadUrl) {
+          fetch(downloadUrl)
+            .then((response) => response.blob())
+            .then((blob) => {
+              // Create a temporary anchor element to trigger download
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.download = fileName;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            })
+            .catch((error) => {
+              console.error("Download failed:", error);
+              alert("Failed to download the media file.");
+            });
+        } else {
+          alert("No media found to download.");
+        }
+      });
+    }
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const imageModal = document.getElementById("image-modal");
+    const modalImage = document.getElementById("modal-image");
+    const closeModalBtn = document.getElementById("close-modal");
+    const openModal = (imageSrc) => {
+      if (imageSrc) {
+        modalImage.src = imageSrc;
+        imageModal.classList.remove("hidden");
+        imageModal.classList.add("flex");
+        document.body.classList.add("modal-open"); // Disable page scrolling
+      }
+    };
+    const closeModal = () => {
+      imageModal.classList.remove("flex");
+      imageModal.classList.add("hidden");
+      modalImage.src = "";
+      document.body.classList.remove("modal-open");
+    };
+    const postImages = document.querySelectorAll(".media-container img");
+    postImages.forEach((img) => {
+      img.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openModal(img.src);
+      });
+    });
+
+    imageModal.addEventListener("click", (e) => {
+      if (e.target === imageModal) closeModal();
+    });
+
+    closeModalBtn.addEventListener("click", closeModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !imageModal.classList.contains("hidden")) {
+        closeModal();
+      }
+    });
+  });
+</script>
+<!-- Subscribe and Leave -->
+<script>
+  // SUBSCRIBE AND LEAVE JS
+  const MembershipManager = {
+    elements: {
+      nonMemberControls: document.getElementById("non-member-controls"),
+      memberControls: document.getElementById("member-controls"),
+      adminControls: document.getElementById("admin-controls"),
+      subscribeBtn: document.getElementById("subscribe-btn"),
+      leaveBtn: document.getElementById("leave-btn"),
+      memberCount: document.getElementById("member-count"),
+      postsCount: document.getElementById("posts-count"),
+      topicsCount: document.getElementById("topics-count"),
+      membersList: document.querySelector(".members-list"),
+      currentUserCard: null,
+    },
+
+    init() {
+      this.elements.currentUserCard = this.findCurrentUserMemberCard();
+      this.setupEventListeners();
+    },
+
+    findCurrentUserMemberCard() {
+      if (!this.elements.membersList) return null;
+      const currentUserId = "{{ user.id }}";
+      return this.elements.membersList.querySelector(
+        `#member-card-${currentUserId}`
+      );
+    },
+
+    setupEventListeners() {
+      this.elements.subscribeBtn?.addEventListener("click", async () => {
+        try {
+          const response = await this.joinForum();
+          if (response.status === "subscribed") {
+            this.updateUIForNewMember(response);
+          }
+        } catch (error) {
+          console.error("Error subscribing:", error);
+          alert("Failed to subscribe. Please try again.");
+        }
+      });
+
+      this.elements.leaveBtn?.addEventListener("click", async () => {
+        try {
+          const response = await this.leaveForum();
+          if (response.status === "left") {
+            this.updateUIForFormerMember(response);
+          }
+        } catch (error) {
+          console.error("Error leaving:", error);
+          alert("Failed to leave forum. Please try again.");
+        }
+      });
+    },
+
+    async joinForum() {
+      const response = await fetch(`{% url 'forums:join_forum' forum.id %}`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+            .value,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Subscription failed");
+      }
+
+      return await response.json();
+    },
+
+    async leaveForum() {
+      const response = await fetch(`{% url 'forums:leave_forum' forum.id %}`, {
+        method: "DELETE",
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+            .value,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Leave forum failed");
+      }
+
+      return await response.json();
+    },
+
+    createMemberCard(userData) {
+      return `
+              <div class="member ${
+                userData.is_admin ? "admin" : ""
+              }" id="member-card-${userData.user_id}">
+                  <img
+                      src="{{ user.profile.profile_pic.url }}"
+                      alt="${userData.username}"
+                  />
+                  <div class="member-info">
+                      <div class="member-name">${userData.username}</div>
+                      <div class="member-likes">${
+                        userData.total_likes
+                      } likes</div>
+                  </div>
+                  <div class="member-role">
+                      <span class="role-badge">${
+                        userData.is_admin ? "Forum Admin" : "Member"
+                      }</span>
+                  </div>
+              </div>
+          `;
+    },
+
+    updateUIForNewMember(data) {
+      this.elements.nonMemberControls.classList.add("hidden");
+
+      if (data.role === "admin") {
+        this.elements.adminControls.classList.remove("hidden");
+        this.elements.memberControls.classList.add("hidden");
+      } else {
+        this.elements.memberControls.classList.remove("hidden");
+        this.elements.adminControls.classList.add("hidden");
+      }
+
+      this.updateCounts(data);
+
+      if (this.elements.membersList) {
+        const existingMemberCard = this.elements.membersList.querySelector(
+          `#member-card-${data.user_id}`
+        );
+
+        if (existingMemberCard) {
+          existingMemberCard.remove();
+        }
+
+        const newMemberCard = this.createMemberCard({
+          user_id: data.user_id,
+          username: "{{ user.username }}",
+          post_likes: "{{ member_info.post_likes }}",
+          is_admin: data.role === "admin",
+          total_likes: data.total_likes,
+        });
+
+        const leftMembersSection =
+          this.elements.membersList.querySelector(".left-members");
+
+        if (leftMembersSection) {
+          leftMembersSection.insertAdjacentHTML("beforebegin", newMemberCard);
+        } else {
+          this.elements.membersList.insertAdjacentHTML(
+            "beforeend",
+            newMemberCard
+          );
+        }
+
+        this.elements.currentUserCard = this.findCurrentUserMemberCard();
+      }
+    },
+
+    updateUIForFormerMember(data) {
+      this.elements.nonMemberControls.classList.remove("hidden");
+      this.elements.memberControls.classList.add("hidden");
+      this.elements.adminControls.classList.add("hidden");
+
+      this.updateCounts(data);
+
+      if (this.elements.currentUserCard) {
+        this.elements.currentUserCard.remove();
+        this.elements.currentUserCard = null;
+      } else {
+        const currentUserCard = this.elements.membersList.querySelector(
+          `#member-card-${data.user_id}`
+        );
+
+        if (currentUserCard) {
+          currentUserCard.remove();
+        }
+      }
+    },
+
+    updateCounts(data) {
+      if (this.elements.memberCount) {
+        this.elements.memberCount.innerHTML = `${data.member_count} <span>Members</span>`;
+      }
+      if (this.elements.postsCount) {
+        this.elements.postsCount.innerHTML = `${data.posts_count} <span>Comments</span>`;
+      }
+      if (this.elements.topicsCount) {
+        this.elements.topicsCount.innerHTML = `${data.topics_count} <span>Topics</span>`;
+      }
+    },
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    MembershipManager.init();
+  });
+</script>
+<!-- Clicking Links and Hash tagging -->
+<script>
+  document.querySelectorAll(".post-content a").forEach(function (link) {
+    link.setAttribute("target", "_blank");
+  });
+  document.addEventListener("DOMContentLoaded", function () {
+    const postContents = document.querySelectorAll(".post-content");
+    postContents.forEach(function (postContent) {
+      postContent.innerHTML = postContent.innerHTML.replace(
+        /#(\w+)/g,
+        '<span class="hashtag">#$1</span>'
+      );
+    });
+  });
+</script>
+
+<!-- View Images -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const imageModal = document.getElementById("image-modal");
+    const modalImage = document.getElementById("modal-image");
+    const closeModalBtn = document.getElementById("close-modal");
+    const openModal = (imageSrc) => {
+      if (imageSrc) {
+        modalImage.src = imageSrc;
+        imageModal.classList.remove("hidden");
+        imageModal.classList.add("flex");
+        document.body.classList.add("modal-open"); // Disable page scrolling
+      }
+    };
+    const closeModal = () => {
+      imageModal.classList.remove("flex");
+      imageModal.classList.add("hidden");
+      modalImage.src = "";
+      document.body.classList.remove("modal-open");
+    };
+    const postImages = document.querySelectorAll(".media-container img");
+    postImages.forEach((img) => {
+      img.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openModal(img.src);
+      });
+    });
+
+    imageModal.addEventListener("click", (e) => {
+      if (e.target === imageModal) closeModal();
+    });
+
+    closeModalBtn.addEventListener("click", closeModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !imageModal.classList.contains("hidden")) {
+        closeModal();
+      }
+    });
+  });
+</script>
+<!-- Sorting Topics -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const sortDropdown = document.getElementById("sort-dropdown");
+    const postsContainer =
+      document.querySelector("[data-posts-container]") || document.body;
+    if (!postsContainer) {
+      console.error("No posts container found");
+      return;
+    }
+    const originalPosts = Array.from(document.querySelectorAll(".post"));
+    const sortPosts = (sortType) => {
+      const posts = Array.from(document.querySelectorAll(".post"));
+
+      if (posts.length === 0) {
+        console.error("No posts found");
+        return;
+      }
+
+      let sortedPosts;
+      try {
+        if (sortType === "newest") {
+          sortedPosts = posts.sort((a, b) => {
+            const dateTimeA = a
+              .querySelector(".post-time")
+              ?.getAttribute("data-created-at");
+            const dateTimeB = b
+              .querySelector(".post-time")
+              ?.getAttribute("data-created-at");
+
+            if (!dateTimeA || !dateTimeB) {
+              console.warn("Missing timestamp for sorting");
+              return 0;
+            }
+
+            const dateA = new Date(dateTimeA);
+            const dateB = new Date(dateTimeB);
+            return dateB - dateA;
+          });
+        } else if (sortType === "trending") {
+          sortedPosts = posts.sort((a, b) => {
+            const viewsElA = a.querySelector(".stat-item .fa-eye + span");
+            const viewsElB = b.querySelector(".stat-item .fa-eye + span");
+
+            if (!viewsElA || !viewsElB) {
+              console.warn("Missing views element for sorting");
+              return 0;
+            }
+
+            const viewsA = parseInt(viewsElA.textContent || "0");
+            const viewsB = parseInt(viewsElB.textContent || "0");
+            return viewsB - viewsA;
+          });
+        } else {
+          sortedPosts = originalPosts;
+        }
+        while (postsContainer.firstChild) {
+          postsContainer.removeChild(postsContainer.firstChild);
+        }
+        sortedPosts.forEach((post) => {
+          if (post && post.parentNode) {
+            post.parentNode.removeChild(post);
+          }
+          postsContainer.appendChild(post);
+        });
+      } catch (error) {
+        console.error("Error sorting posts:", error);
+      }
+    };
+    if (sortDropdown) {
+      sortDropdown.addEventListener("change", (event) => {
+        sortPosts(event.target.value);
+      });
+    } else {
+      console.error("Sort dropdown not found");
+    }
+  });
+</script>
+<!-- Copying Forum Links -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".forum-title").forEach(function (forumTitle) {
+      forumTitle.addEventListener("click", function () {
+        const forumId = forumTitle.dataset.forumId;
+
+        if (forumId) {
+          const forumUrl = window.location.origin + "/forums/" + forumId;
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard
+              .writeText(forumUrl)
+              .then(() => {
+                showNotification("Forum URL copied");
+              })
+              .catch((err) => {
+                console.error("Failed to copy forum URL:", err);
+                showNotification("Failed to copy forum URL");
+              });
+          } else {
+            const tempInput = document.createElement("input");
+            tempInput.value = forumUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+              document.execCommand("copy");
+              showNotification("Forum URL copied successfully");
+            } catch (err) {
+              console.error("Fallback copy failed:", err);
+              showNotification("Failed to copy forum URL");
+            }
+            document.body.removeChild(tempInput);
+          }
+        } else {
+          console.error("Forum ID not found in the data attribute.");
+        }
+      });
+    });
+
+    function showNotification(message) {
+      const notification = document.createElement("div");
+      notification.innerText = message;
+      notification.style.position = "fixed";
+      notification.style.bottom = "20px";
+      notification.style.left = "50%";
+      notification.style.transform = "translateX(-50%)";
+      notification.style.backgroundColor = "#28a745";
+      notification.style.color = "#fff";
+      notification.style.padding = "10px 20px";
+      notification.style.borderRadius = "5px";
+      notification.style.boxShadow = "0px 4px 6px rgba(0, 0, 0, 0.1)";
+      notification.style.zIndex = "1000";
+      notification.style.fontFamily = "Arial, sans-serif";
+      notification.style.fontSize = "14px";
+      notification.style.opacity = "0";
+      notification.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+
+      document.body.appendChild(notification);
+      setTimeout(() => {
+        notification.style.opacity = "1";
+        notification.style.transform = "translateX(-50%) translateY(-10px)";
+      }, 10);
+      setTimeout(() => {
+        notification.style.opacity = "0";
+        notification.style.transform = "translateX(-50%) translateY(0px)";
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
+    }
+  });
+</script>
