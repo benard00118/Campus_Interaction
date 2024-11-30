@@ -1,0 +1,28 @@
+{% for reply in replies %}
+<div class="comment reply">
+    <div class="comment-author">
+        <img src="{{ reply.user.profile.profile_pic.url }}" alt="{{ reply.user.username }} Profile" />
+        <span class="comment-username">{{ reply.user.username }}</span>
+    </div>
+    <div class="comment-content">{{ reply.content }}</div>
+
+    <div class="comment-actions">
+        <button class="like-button" onclick="likeComment('{{ reply.id }}')">
+            Like ({{ reply.likecomment_set.count }})
+        </button>
+        <button class="reply-button" onclick="toggleReplyForm('{{ reply.id }}')">Reply  ({{ reply.replies.count }})</button>
+    </div>
+
+    <!-- Reply form for nested reply -->
+    <div id="reply-form-{{ reply.id }}" class="reply-form" style="display: none;">
+        <form method="POST" action="{% url 'forums:reply_to_comment' reply.id %}">
+            {% csrf_token %}
+            <textarea name="content" placeholder="Write your reply here..."></textarea>
+            <button type="submit">Post Reply</button>
+        </form>
+    </div>
+
+    <!-- Render nested replies -->
+    {% include "forums/replies.html" with replies=reply.replies.all %}
+</div>
+{% endfor %}
