@@ -25,61 +25,6 @@
 <script src="{% static 'js/forum/viewing_images.js' %}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
-    const saveButton = document.getElementById("download_image_video");
-    const mediaContainer = document.querySelector(".media-container");
-
-    // Function to generate a random filename starting with camphub
-    function generateRandomFilename(type) {
-      const randomString = Math.random().toString(36).substring(2, 10);
-      return `camphub_${type}_${randomString}`;
-    }
-
-    if (saveButton && mediaContainer) {
-      saveButton.addEventListener("click", () => {
-        let downloadUrl = "";
-        let fileName = "";
-        // Check for image
-        const image = mediaContainer.querySelector("img");
-        if (image) {
-          downloadUrl = image.src;
-          fileName = generateRandomFilename("image") + ".jpg";
-        }
-        // Check for video
-        const video = mediaContainer.querySelector("video");
-        if (video) {
-          const source = video.querySelector("source");
-          if (source) {
-            downloadUrl = source.src;
-            fileName = generateRandomFilename("video") + ".mp4";
-          }
-        }
-        // If media found, trigger download
-        if (downloadUrl) {
-          fetch(downloadUrl)
-            .then((response) => response.blob())
-            .then((blob) => {
-              // Create a temporary anchor element to trigger download
-              const link = document.createElement("a");
-              link.href = URL.createObjectURL(blob);
-              link.download = fileName;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            })
-            .catch((error) => {
-              console.error("Download failed:", error);
-              alert("Failed to download the media file.");
-            });
-        } else {
-          alert("No media found to download.");
-        }
-      });
-    }
-  });
-</script>
-
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
     const imageModal = document.getElementById("image-modal");
     const modalImage = document.getElementById("modal-image");
     const closeModalBtn = document.getElementById("close-modal");
@@ -88,7 +33,7 @@
         modalImage.src = imageSrc;
         imageModal.classList.remove("hidden");
         imageModal.classList.add("flex");
-        document.body.classList.add("modal-open"); // Disable page scrolling
+        document.body.classList.add("modal-open");
       }
     };
     const closeModal = () => {
@@ -517,6 +462,468 @@
         notification.style.transform = "translateX(-50%) translateY(0px)";
         setTimeout(() => notification.remove(), 500);
       }, 3000);
+    }
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const toggleButtons = document.querySelectorAll(".toggle-visibility-btn");
+
+    toggleButtons.forEach((button) => {
+      button.addEventListener("click", function () {
+        const postId = button.getAttribute("data-post-id");
+        const isApproved = button.getAttribute("data-approved") === "true";
+
+        fetch(`/forums/toggle-post-approval/${postId}/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
+              .value,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            is_approved: !isApproved,
+          }),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Error toggling post visibility.");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            if (data.success) {
+              const newApprovedStatus = data.approved;
+              const newButtonText = newApprovedStatus
+                ? '<i class="fa-solid fa-eye-slash"></i> Hide'
+                : '<i class="fa-solid fa-eye"></i> Show';
+
+              button.innerHTML = newButtonText;
+              button.setAttribute("data-approved", newApprovedStatus);
+
+              const post = document.getElementById("post-" + postId);
+              if (post) {
+                const statusIcon = post.querySelector(".post-status-icon");
+                if (statusIcon) {
+                  if (!newApprovedStatus) {
+                    statusIcon.innerHTML =
+                      '<i class="fa-solid fa-eye-slash"></i>';
+                    statusIcon.title = "Post is hidden from public view";
+                  } else {
+                    statusIcon.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                    statusIcon.title = "Post is visible to the public";
+                  }
+                }
+              }
+            } else {
+              alert("Error: " + (data.error || "Something went wrong."));
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert(error.message || "Error toggling post visibility.");
+          });
+      });
+    });
+  });
+</script>
+
+<!-- Comment Reply and Like Comment -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const postId = document.querySelector("article.post").id.split("-")[1];
+    const csrfToken = document.querySelector(
+      "[name=csrfmiddlewaretoken]"
+    ).value;
+
+    function setupReplyToggleListeners() {
+      const toggleButtons = document.querySelectorAll(".toggle-replies");
+      toggleButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+          const commentId = button.getAttribute("data-comment-id");
+          const repliesContainer = document.getElementById(
+            `replies-container-${commentId}`
+          );
+          if (
+            repliesContainer.style.display === "none" ||
+            repliesContainer.style.display === ""
+          ) {
+            repliesContainer.style.display = "block";
+            button.textContent = "-";
+          } else {
+            repliesContainer.style.display = "none";
+            button.textContent = "+";
+          }
+        });
+      });
+    }
+
+    setupReplyToggleListeners();
+
+    function convertUrlsToLinks(text) {
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return text.replace(urlRegex, function (url) {
+        return `<a href="${url}" target="_blank">${url}</a>`;
+      });
+    }
+
+    function createCommentHTML(comment, isReply = false, currentUserId) {
+      const likesCount = comment.likes_count || 0;
+      const repliesCount = comment.replies_count || 0;
+
+      const contentWithLinks = convertUrlsToLinks(comment.content);
+
+      return `
+        <div class="comment ${
+          isReply ? "reply" : ""
+        }" data-comment-id="${comment.id}">
+            <div class="comment-author">
+                <img src="${
+                  comment.profile_pic_url
+                }" alt="${comment.username} Profile" />
+                <span class="comment-username">${comment.username}</span>
+                <span class="comment__posted_time">• Just now •</span>
+            </div>
+            <div class="comment-content">${contentWithLinks}</div>
+            <div class="comment-actions">
+                <button class="like-button" data-comment-id="${comment.id}">
+                    <i class="fa fa-thumbs-up" aria-hidden="true"></i> ${likesCount}
+                </button>
+                <button class="reply-button" data-comment-id="${comment.id}">
+                    <i class="fa fa-comment" aria-hidden="true"></i> ${repliesCount}
+                </button>
+                ${
+                  comment.user_id === currentUserId
+                    ? `
+                            <button data-comment-id="${comment.id}" class="delete-comment-btn">
+                                <i class="fa fa-trash" aria-hidden="true"></i>
+                            </button>
+                        `
+                    : ""
+                }
+                <button data-comment-id="${
+                  comment.id
+                }" class="share-comment-button">
+                    <i class="fa fa-share" aria-hidden="true"></i> Share
+                </button>
+            </div>
+            <div id="reply-form-${
+              comment.id
+            }" class="reply-form" style="display: none;">
+                <form data-comment-id="${comment.id}">
+                    <div class="reply__wrap">
+                        <textarea name="content" placeholder="Write your reply here..."></textarea>
+                        <div class="buttons-container">
+                            <button type="button" class="cancel-reply-button">Cancel</button>
+                            <button type="submit" class="submit-reply-button">Post Reply</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="replies-container" style="display: none;"></div>
+        </div>
+    `;
+    }
+
+    function appendCommentHTML(commentHTML, parent = null) {
+      if (parent) {
+        let repliesContainer = parent.querySelector(".replies-container");
+        repliesContainer.insertAdjacentHTML("beforeend", commentHTML);
+      } else {
+        const commentsSection = document.querySelector(".comments-section");
+        if (commentsSection.querySelector(".no-comments")) {
+          commentsSection.innerHTML = "";
+        }
+        commentsSection.insertAdjacentHTML("afterbegin", commentHTML);
+      }
+    }
+
+    function updateCommentCount(increase = 1) {
+      const commentCountElement = document.getElementById("posts-count");
+      const currentCount = parseInt(
+        commentCountElement.textContent.split(" ")[0]
+      );
+      commentCountElement.innerHTML = `${
+        currentCount + increase
+      } <span>Comments</span>`;
+    }
+
+    function setupListeners() {
+      const likeButtons = document.querySelectorAll(".like-button");
+      likeButtons.forEach((button) => {
+        button.addEventListener("click", function (event) {
+          event.preventDefault();
+          const commentId = button.dataset.commentId;
+          fetch(`/forums/comments/${commentId}/like/`, {
+            method: "POST",
+            headers: {
+              "X-CSRFToken": csrfToken,
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                button.innerHTML = `<i class="fa fa-thumbs-up" aria-hidden="true"></i> ${data.likes_count}`;
+                if (data.liked) {
+                  button.classList.add("liked");
+                } else {
+                  button.classList.remove("liked");
+                }
+              }
+            })
+            .catch((error) => console.error("Error:", error));
+        });
+      });
+
+      const replyButtons = document.querySelectorAll(".reply-button");
+      replyButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+          const commentId = button.dataset.commentId;
+          const replyForm = document.getElementById(`reply-form-${commentId}`);
+          const repliesContainer = document.getElementById(
+            `replies-container-${commentId}`
+          );
+          const toggleRepliesButton = document.querySelector(
+            `.toggle-replies[data-comment-id="${commentId}"]`
+          );
+          document.querySelectorAll(".reply-form").forEach((form) => {
+            if (form.id !== `reply-form-${commentId}`) {
+              form.style.display = "none";
+            }
+          });
+          replyForm.style.display =
+            replyForm.style.display === "none" || replyForm.style.display === ""
+              ? "block"
+              : "none";
+          if (replyForm.style.display === "block") {
+            repliesContainer.style.display = "block";
+            if (toggleRepliesButton) {
+              toggleRepliesButton.textContent = "-";
+            }
+          }
+        });
+      });
+
+      const cancelReplyButtons = document.querySelectorAll(
+        ".cancel-reply-button"
+      );
+      cancelReplyButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+          const replyForm = button.closest(".reply-form");
+          replyForm.style.display = "none";
+          replyForm.querySelector("textarea").value = "";
+        });
+      });
+
+      const replyForms = document.querySelectorAll(".reply-form form");
+      replyForms.forEach((form) => {
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          const commentId = form.dataset.commentId;
+          const content = form.querySelector("textarea").value.trim();
+          if (content) {
+            fetch(`/forums/comments/${commentId}/reply/`, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": csrfToken,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ content: content }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.success) {
+                  const parentComment = document.querySelector(
+                    `.comment[data-comment-id="${commentId}"]`
+                  );
+                  const newReplyHTML = createCommentHTML(data.comment, true);
+                  appendCommentHTML(newReplyHTML, parentComment);
+                  form.querySelector("textarea").value = "";
+                  form.closest(".reply-form").style.display = "none";
+                  const replyButton =
+                    parentComment.querySelector(".reply-button");
+                  const currentCount = parseInt(
+                    replyButton.textContent.match(/\d+/)[0]
+                  );
+                  replyButton.innerHTML = `<i class="fa fa-comment" aria-hidden="true"></i> ${
+                    currentCount + 1
+                  }`;
+                  updateCommentCount();
+                }
+              })
+              .catch((error) => console.error("Error:", error));
+          }
+        });
+      });
+
+      const deleteButtons = document.querySelectorAll(".delete-comment-btn");
+      deleteButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+          const commentId = button.dataset.commentId;
+          fetch(`/forums/comments/${commentId}/delete/`, {
+            method: "DELETE",
+            headers: {
+              "X-CSRFToken": csrfToken,
+            },
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                const commentElement = document.querySelector(
+                  `.comment[data-comment-id="${commentId}"]`
+                );
+                commentElement.remove();
+                updateCommentCount(-1);
+              }
+            })
+            .catch((error) => console.error("Error:", error));
+        });
+      });
+    }
+
+    const commentForm = document.getElementById("comment-form");
+    const textarea = commentForm.querySelector("textarea");
+    const textareaContainer = commentForm.querySelector(".textarea-container");
+
+    textarea.addEventListener("focus", function () {
+      textareaContainer.classList.add("expanded");
+      textarea.style.height = "auto";
+      textareaContainer.style.border = "1px solid #00000038";
+    });
+
+    textarea.addEventListener("input", function () {
+      textarea.style.height = "auto";
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    });
+
+    const cancelButton = commentForm.querySelector(".cancel-button");
+    cancelButton.addEventListener("click", function () {
+      textareaContainer.classList.remove("expanded");
+      textareaContainer.style.border = "none";
+      textarea.value = "";
+      textarea.style.height = "auto";
+    });
+
+    commentForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const content = textarea.value.trim();
+      if (content) {
+        fetch(`/forums/post/${postId}/add_comment/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": csrfToken,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: content }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              const newCommentHTML = createCommentHTML(data.comment);
+              appendCommentHTML(newCommentHTML);
+              textarea.value = "";
+              updateCommentCount();
+            }
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+    });
+
+    setupListeners();
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const shareButtons = document.querySelectorAll(".share-comment-button");
+
+    shareButtons.forEach((button) => {
+      button.addEventListener("click", function (event) {
+        event.stopPropagation(); // Prevent the event from bubbling up
+        const commentId = button.getAttribute("data-comment-id");
+        const articleElement = document.querySelector("article.post");
+        const forumId = articleElement.getAttribute("data-forum-id");
+        const postId = articleElement.id.split("-")[1];
+        const shareLink = `${window.location.origin}/forums/forum/${forumId}/post/${postId}?comment_id=${commentId}`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard
+            .writeText(shareLink)
+            .then(() => {
+              showShareSuccessMessage();
+              console.log("Link copied to clipboard: " + shareLink);
+            })
+            .catch((err) => {
+              console.error("Error copying link: ", err);
+            });
+        } else {
+          fallbackCopyToClipboard(shareLink);
+          showShareSuccessMessage();
+        }
+      });
+    });
+
+    function fallbackCopyToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.style.position = "fixed";
+      textArea.style.top = "-1000px";
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand("copy");
+        console.log("Fallback: Link copied to clipboard: " + text);
+      } catch (err) {
+        console.error("Fallback: Unable to copy", err);
+      }
+      document.body.removeChild(textArea);
+    }
+
+    function showShareSuccessMessage() {
+      const successMessage = document.createElement("div");
+      successMessage.classList.add("share-success-message");
+      successMessage.textContent = "Comment link copied to clipboard!";
+      document.body.appendChild(successMessage);
+      successMessage.style.position = "fixed";
+      successMessage.style.bottom = "20px";
+      successMessage.style.left = "50%";
+      successMessage.style.transform = "translateX(-50%)";
+      successMessage.style.backgroundColor = "#28a745";
+      successMessage.style.color = "#fff";
+      successMessage.style.padding = "10px 20px";
+      successMessage.style.borderRadius = "5px";
+      successMessage.style.fontSize = "16px";
+      successMessage.style.zIndex = "9999";
+      successMessage.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
+      setTimeout(() => {
+        successMessage.style.display = "none";
+      }, 3000);
+    }
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const commentId = urlParams.get("comment_id");
+
+    if (commentId) {
+      const targetComment = document.querySelector(
+        `.comment[data-comment-id="${commentId}"]`
+      );
+
+      if (targetComment) {
+        targetComment.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        let blinkCount = 0;
+        const interval = setInterval(() => {
+          targetComment.style.backgroundColor =
+            blinkCount % 2 === 0 ? "#e9f5ff" : "";
+          blinkCount++;
+          if (blinkCount === 6) clearInterval(interval);
+        }, 500);
+      }
     }
   });
 </script>

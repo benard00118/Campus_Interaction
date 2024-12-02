@@ -92,6 +92,13 @@
     <div class="">
       <div class="sub-message">
         <div class="discussion-comments">
+          <p class="back-btn">
+            <a
+              href="{% url 'forums:forum_detail' forum.id %}"
+              class="forum-card-overlay"
+              ><i class="fa-solid fa-arrow-left"></i
+            ></a>
+          </p>
           <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
           <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
           <p id="topics-count" class="topics-count">
@@ -146,12 +153,12 @@
   </div>
 
 
-  <div class="post-container">
+  <div class="post-container" >
   {% include "forums/members.html"%}
- 
-  <div class="main-content">
+  
+  <div class="main-content" style="border-right: 1px solid #ccc;">
     <div data-posts-container class="posts-container">
-        <article class="post" id="post-{{ post.id }}">
+        <article class="post" id="post-{{ post.id }}" data-forum-id="{{ forum.id }}" >
           <div class="author__options">
             <div class="post-author">
               <img
@@ -190,8 +197,15 @@
                 ><i class="fa-solid fa-pen"></i> Edit
               </button>
               <button
-                class="menu-item"
-              ><i class="fa-solid fa-eye-slash"></i> Hide</button>
+            class="menu-item toggle-visibility-btn"
+            data-post-id="{{ post.id }}"
+            data-approved="{{ post.approved }}">
+            {% if post.approved %}
+                <i class="fa-solid fa-eye-slash"></i> Hide
+            {% else %}
+              <i class="fa-solid fa-eye"></i> Show
+            {% endif %}
+             </button>
                 <button
                   class="menu-item delete-btn"
                   onclick="deletePost('{{ post.id }}')"
@@ -214,7 +228,8 @@
   
           <div class="post-content">
             <h4>{{post.title}}</h4>
-            <p>{{ post.content|urlize|truncatewords:60 }}</p>
+            <p>{{ post.content|urlize|linebreaks|truncatewords:60 }}</p>
+
   
             {% if post.image %}
             <div class="media-container">
@@ -290,7 +305,7 @@
 
               <span class="stat-item">
                 <i class="fa-solid fa-comment"></i>
-                <span>0</span>
+                <span>{{ comment_count }} </span>
               </span>
 
             <span class="stat-item" onclick="sharePost('{{ post.id }}')">
@@ -301,53 +316,86 @@
         </article>
         </div>
 
-        <div class="comments-section">
-            <h2>Comments</h2>
-            {% for comment in comments %}
-                {% if not comment.parent_comment %} <!-- Only display top-level comments -->
-                <div class="comment">
-                    <div class="comment-author">
-                        <img src="{{ comment.user.profile.profile_pic.url }}" alt="{{ comment.user.username }} Profile" />
-                        <span class="comment-username">{{ comment.user.username }}</span>
-                    </div>
-                    <div class="comment-content">{{ comment.content }}</div>
-                    
-                    <div class="comment-actions">
-                        <button class="like-button" onclick="likeComment('{{ comment.id }}')">
-                            Like ({{ comment.likecomment_set.count }})
-                        </button>
-                        <button class="reply-button" onclick="toggleReplyForm('{{ comment.id }}')">Reply ({{ comment.replies.count }})</button>
-                    </div>
+        <div class="comment__section">
+          <div class="comment-form">
+              <form id="comment-form" method="POST">
+                  {% csrf_token %}
+                  <div class="textarea-container">
+                      <textarea name="content" placeholder="Write a comment..."></textarea>
+                      <div class="buttons-container">
+                          <button type="button" class="cancel-button">Cancel</button>
+                          <button type="submit" class="submit-button">Comment</button>
+                      </div>
+                  </div>
+              </form>
+          </div>      
+      
+          <div class="comments-section">
+            {% if comments %}
+                {% for comment in comments %}
+                    {% if not comment.parent_comment %}
+                    <div class="comment" data-comment-id="{{ comment.id }}">
+                        <div class="comment-author">
+                            <img src="{{ comment.user.profile.profile_pic.url }}" alt="{{ comment.user.username }} Profile" />
+                            <span class="comment-username">{{ comment.user.username }}</span>
+                            <span class="comment__posted_time">{{ comment.created_at|short_timesince }}</span>
+                        </div>
+                        <div class="comment-content">{{ comment.content|urlize|linebreaks }}</div>
+                        
+                        <div class="comment-actions">
+                            <button class="like-button {% if comment.is_liked %}liked{% endif %}"  data-comment-id="{{ comment.id }}" >
+                              <i class="fa fa-thumbs-up" aria-hidden="true"></i> {{ comment.likecomment_set.count }}
+                            </button>
+                            <button class="reply-button" data-comment-id="{{ comment.id }}">
+                              <i class="fa fa-comment" aria-hidden="true"></i> {{ comment.replies.count }}
+                            </button>
+                            {% if comment.user.id == request.user.id %}
+                            <button  data-comment-id="{{ comment.id }}" class="delete-comment-btn">
+                              <i class="fa fa-trash" aria-hidden="true"></i> 
+                            </button>
+                            {% endif %}
+                           
+                            <button  data-comment-id="{{ comment.id }}" class="share-comment-button">
+                              <i class="fa fa-share" aria-hidden="true"></i> Share
+                            </button>
+                           
+                        </div>
         
-                    <!-- Reply form -->
-                    <div id="reply-form-{{ comment.id }}" class="reply-form" style="display: none;">
-                        <form method="POST" action="{% url 'forums:reply_to_comment' comment.id %}">
-                            {% csrf_token %}
-                            <textarea name="content" placeholder="Write your reply here..."></textarea>
-                            <button type="submit">Post Reply</button>
-                        </form>
-                    </div>
+                        <div id="reply-form-{{ comment.id }}" class="reply-form" style="display: none;">
+                            <form data-comment-id="{{ comment.id }}">
+                              <div class="reply__wrap">
+                                <textarea name="content" placeholder="Write your reply here..."></textarea>
+                                <div class="buttons-container">
+                                    <button type="button" class="cancel-reply-button">Cancel</button>
+                                    <button type="submit" class="submit-reply-button">Post Reply</button>
+                                </div>
+                              </div>
+                            </form>
+                        </div>
         
-                    <!-- Display child replies recursively -->
-                    {% include "forums/replies.html" with replies=comment.replies.all %}
-                </div>
-                {% endif %}
-            {% empty %}
-                <p>No comments yet. Be the first to comment!</p>
-            {% endfor %}
+                        <div class="replies-toggle">
+                          {% if comment.replies.count > 0 %}
+                              <button class="toggle-replies" data-comment-id="{{ comment.id }}">+</button>
+                          {% endif %}
+                      </div>                      
+        
+                        <div class="replies-container" id="replies-container-{{ comment.id }}" style="display: none;">
+                            {% include "forums/replies.html" with replies=comment.replies.all %}
+                        </div>
+                    </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="no-comments">No comments yet. Be the first to comment!</p>
+                {% endfor %}
+            {% else %}
+                <p class="no-comments">No comments yet. Be the first to comment!</p>
+            {% endif %}
         </div>
         
+      </div>
+      
         
-
-        <!-- Comment Form -->
-    <div class="comment-form">
-        <h3>Leave a Comment</h3>
-        <form method="POST">
-            {% csrf_token %}
-            {{ form.as_p }}
-            <button type="submit">Post Comment</button>
-        </form>
-    </div>
+        
 
 </div>
 
@@ -405,6 +453,7 @@
   </div>
 </div>
 {% include "forums/all_scripts.html"%}
+ 
 <!-- Video Player -->
 <script>
     document.addEventListener("DOMContentLoaded", () => {
@@ -499,4 +548,5 @@
       }
     });
   </script>
+
 {% endblock %}

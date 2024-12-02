@@ -1,4 +1,4 @@
-{% extends 'base.html' %} {% block title %}{{ forum.name }} - Create Topic 
+{% extends 'base.html' %} {% block title %}{{ forum.name }} - Create Topic
 {% endblock %} {% block content %}{% load custom_filters %} {% load static %}
 <link rel="stylesheet" href="{% static 'css/forum/forum_detail.css' %}" />
 <link rel="stylesheet" href="{% static 'css/forum/add_topic.css' %}" />
@@ -14,15 +14,17 @@
 <script src="{% static 'js/forum/forum_details.js' %}"></script>
 <script src="{% static 'js/forum/create__topic.js' %}"></script>
 
-
 <div class="subscribe">
   <div class="">
     <div class="sub-message">
       <div class="discussion-comments">
-        <p class="back-btn"> <a
-          href="{% url 'forums:forum_detail' forum.id %}"
-          class="forum-card-overlay"
-        ><i class="fa-solid fa-arrow-left"></i></a></p>
+        <p class="back-btn">
+          <a
+            href="{% url 'forums:forum_detail' forum.id %}"
+            class="forum-card-overlay"
+            ><i class="fa-solid fa-arrow-left"></i
+          ></a>
+        </p>
         <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
         <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
         <p id="topics-count" class="topics-count">
@@ -53,7 +55,7 @@
   <!-- OTHER FORUMS -->
   <aside class="sidebar">
     <div class="sidebar-header">
-      <h2 style="text-transform: uppercase">Alternative Forums to Explore</h2>
+      <h2 style="text-transform: uppercase">Popular Forums to Explore</h2>
     </div>
     <div class="member-list" style="border-top: 1px solid #ebeef0">
       <a href="{% url 'forums:forum_create' %}">
@@ -85,7 +87,7 @@
           {% if forum_detail.forum.display_picture %}
           <img
             src="{{ forum_detail.forum.display_picture.url }}"
-            alt="{{ member_info.user.username }}"
+            alt="{{ forum_detail.user.username }}"
           />
           {% else %}
           <div class="image-i">
@@ -98,8 +100,8 @@
               {% if forum_detail.forum.name|length > 18 %}...{% endif %}
             </div>
             <div class="member-likes">
-              {{ forum_detail.total_members }} members, 
-              {{ forum_detail.forum.forums_posts.count }} posts
+              {{ forum_detail.total_members }} members,
+               {{ forum_detail.forum.forums_posts.count }} posts
             </div>
           </div>
           <div class="member-role">
@@ -123,7 +125,13 @@
           </div>
         </div>
       </a>
-      {% endfor %}
+      {% endfor %} {% if forum_details|length > 5 %}
+      <div class="view-more-button">
+        <a href="{% url 'forums:forum_list' %}" class="btn btn-primary"
+          >View More Forums</a
+        >
+      </div>
+      {% endif %}
     </div>
   </aside>
 
@@ -137,65 +145,72 @@
       </div>
     </div>
     <div class="sections">
-        <div class="create__options">
-            <a href="" id="create-text">Text</a>
-            <a href="" id="create-image-video">Image & Video</a>
-            <a href="{% url 'polls:add_polls' %}" id="create-poll" target="_blank">Poll</a>
-        </div>
-    </div>   
+      <div class="create__options">
+        <a href="" id="create-text">Text</a>
+        <a href="" id="create-image-video">Image & Video</a>
+        <a href="{% url 'polls:add_polls' %}" id="create-poll" target="_blank"
+          >Poll</a
+        >
+      </div>
+    </div>
     <div class="post__form" data-forum-id="{{forum.id}}">
-        <form method="POST" enctype="multipart/form-data" id="post-form" class="p-2">
-            {% csrf_token %}
-    
-            <!-- Title field is common for both text and image/video posts -->
-            <div class="form-group mb-3" id="title-field">
-                {{ post_form.title }}
-                <div id="char-count" class="char-count">
-                  0/200 
-                 </div>
-            </div>
-            
-            
-            <!-- Text Post Fields -->
-            <div id="text-post-fields" style="display: none;">
-                <div class="form-group mb-3">
-                    {{ post_form.content }}
-                </div>
-            </div>
-            
-            <!-- Image & Video Post Fields -->
-            <div id="image-video-post-fields" style="display: none;">
-              <div class="drag-and-drop-area" id="drag-and-drop-area">
-                <p>Drag and drop or Upload Media <i class="fa-solid fa-upload"></i></p>
-                <input type="file" id="hidden-file-input" accept="image/*,video/*" style="display: none;" />
-              </div>
-              <div class="preview-container" id="preview-container"></div>
-              <!-- Hidden inputs for form submission -->
-              <div class="form-group image-field" style="display: none;">
-                {{ post_form.image }}
-              </div>
-              <div class="form-group video-field" style="display: none;">
-                {{ post_form.video }}
-              </div>
-            </div>
-            <!-- Errors -->
-            <div id="form-errors" class="form-errors" style="display: none;"></div>
+      <form
+        method="POST"
+        enctype="multipart/form-data"
+        id="post-form"
+        class="p-2"
+      >
+        {% csrf_token %}
 
-  
-            <!-- Submit Button -->
-            <div id="submit-button-div" style="display: none;">
-                <button type="button" id="save-draft-btn">Save Draft</button>
-                <button type="submit" id="publish-btn">Post</button>
-            </div>
-        </form>
+        <!-- Title field is common for both text and image/video posts -->
+        <div class="form-group mb-3" id="title-field">
+          {{ post_form.title }}
+          <div id="char-count" class="char-count">0/200</div>
         </div>
-    
+
+        <!-- Text Post Fields -->
+        <div id="text-post-fields" style="display: none">
+          <div class="form-group mb-3">{{ post_form.content }}</div>
+        </div>
+
+        <!-- Image & Video Post Fields -->
+        <div id="image-video-post-fields" style="display: none">
+          <div class="drag-and-drop-area" id="drag-and-drop-area">
+            <p>
+              Drag and drop or Upload Media <i class="fa-solid fa-upload"></i>
+            </p>
+            <input
+              type="file"
+              id="hidden-file-input"
+              accept="image/*,video/*"
+              style="display: none"
+            />
+          </div>
+          <div class="preview-container" id="preview-container"></div>
+          <!-- Hidden inputs for form submission -->
+          <div class="form-group image-field" style="display: none">
+            {{ post_form.image }}
+          </div>
+          <div class="form-group video-field" style="display: none">
+            {{ post_form.video }}
+          </div>
+        </div>
+        <!-- Errors -->
+        <div id="form-errors" class="form-errors" style="display: none"></div>
+
+        <!-- Submit Button -->
+        <div id="submit-button-div" style="display: none">
+          <button type="button" id="save-draft-btn">Save Draft</button>
+          <button type="submit" id="publish-btn">Post</button>
+        </div>
+      </form>
+    </div>
   </div>
   <div class="members"></div>
 </div>
 <!-- Drag and Drop -->
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
   const dragDropArea = document.getElementById("drag-and-drop-area");
   const hiddenFileInput = document.getElementById("hidden-file-input");
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -235,6 +250,14 @@
     if (!file) return;
 
     const fileType = file.type.split("/")[0];
+    
+    // Check if the file is a .webm video
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === "webm") {
+      showErrorMessage("WebM files are not supported. Please upload a different format.");
+      return;
+    }
+
     if (fileType !== "image" && fileType !== "video") {
       showErrorMessage("Please upload an image or video file.");
       return;
@@ -289,9 +312,9 @@
 
       dragDropArea.classList.remove("preview-mode");
       dragDropArea.innerHTML = `
-        <p>Drag and drop or Upload Media <i class="fa-solid fa-upload"></i></p>
-        <input type="file" id="hidden-file-input" accept="image/*,video/*" style="display: none;" />
-      `;
+      <p>Drag and drop or Upload Media <i class="fa-solid fa-upload"></i></p>
+      <input type="file" id="hidden-file-input" accept="image/*,video/*" style="display: none;" />
+    `;
 
       const uploadIcon = dragDropArea.querySelector(".fa-upload");
       uploadIcon.addEventListener("click", (e) => {
@@ -355,26 +378,28 @@
 </script>
 <!-- Counting Title -->
 <script>
-  const titleInput = document.getElementById('topic__title');
-  const charCountDiv = document.getElementById('char-count');
+  const titleInput = document.getElementById("topic__title");
+  const charCountDiv = document.getElementById("char-count");
   function updateCharCount() {
-      const currentLength = titleInput.value.length;
-      charCountDiv.textContent = `${currentLength}/200`; 
+    const currentLength = titleInput.value.length;
+    charCountDiv.textContent = `${currentLength}/200`;
   }
-  titleInput.addEventListener('input', updateCharCount);
-const textarea = document.getElementById('topic__content');
-function initializeTextarea() {
+  titleInput.addEventListener("input", updateCharCount);
+  const textarea = document.getElementById("topic__content");
+  function initializeTextarea() {
     const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
-    const padding = parseFloat(getComputedStyle(textarea).paddingTop) + parseFloat(getComputedStyle(textarea).paddingBottom);
+    const padding =
+      parseFloat(getComputedStyle(textarea).paddingTop) +
+      parseFloat(getComputedStyle(textarea).paddingBottom);
     textarea.style.height = `${lineHeight * 6 + padding}px`;
-}
+  }
 
-function resizeTextarea() {
-    textarea.style.height = 'auto';
+  function resizeTextarea() {
+    textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
-}
+  }
 
-initializeTextarea(); 
-textarea.addEventListener('input', resizeTextarea);
+  initializeTextarea();
+  textarea.addEventListener("input", resizeTextarea);
 </script>
 {% endblock %}
