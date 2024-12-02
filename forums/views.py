@@ -32,7 +32,7 @@ from django.db.models import Count
 from django.views.decorators.csrf import csrf_protect
 import json
 from django.views.decorators.csrf import csrf_exempt
-
+import logging
 
 # View that handles displaying the list of forums.
 class ForumListView(ListView):
@@ -812,7 +812,7 @@ def add_comment_to_post(request, post_id):
     except Post.DoesNotExist:
         return JsonResponse({"success": False, "error": "Post not found"}, status=404)
     except Exception as e:
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+        logging.error("Error in add_comment_to_post: %s", str(e))
 
 
 @login_required
@@ -860,7 +860,8 @@ def reply_to_comment(request, comment_id):
         )
 
     except Exception as e:
-        return JsonResponse({"success": False, "error": str(e)}, status=500)
+                logger = logging.getLogger(__name__)
+
 
 
 @login_required
