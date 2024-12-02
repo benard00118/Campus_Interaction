@@ -55,7 +55,7 @@
   <div class="container forum-header">
     <div class="row">
       <div class="col-lg-6">
-        <h1 class="display-4" style="text-transform: uppercase">
+        <h1 class="display-5" style="text-transform: uppercase">
           {{ forum.name }}
         </h1>
         <p class="lead">
@@ -101,6 +101,7 @@
     <!-- POSTS/TOPICS -->
     <div data-posts-container class="posts-container">
       {% for post in posts %}
+      {% if post.approved or post.user == request.user %}
       <article class="post" id="post-{{ post.id }}">
         <a
         href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}"
@@ -128,7 +129,11 @@
                 <span class="user-role"> {{ post.user_role }} </span>
 
                 <span class="separator">•</span>
-                <span class="publish-info">Published in {{ forum.name }}</span>
+                <span class="publish-info">Published in {% if forum.name|length > 15 %}
+                  {{ forum.name|slice:":30" }}...
+              {% else %}
+                  {{ forum.name }}
+              {% endif %}</span>
               </div>
             </div>
           </div>
@@ -145,8 +150,15 @@
               ><i class="fa-solid fa-pen"></i> Edit
             </button>
             <button
-              class="menu-item"
-            ><i class="fa-solid fa-eye-slash"></i> Hide</button>
+            class="menu-item toggle-visibility-btn"
+            data-post-id="{{ post.id }}"
+            data-approved="{{ post.approved }}">
+            {% if post.approved %}
+                <i class="fa-solid fa-eye-slash"></i> Hide
+            {% else %}
+              <i class="fa-solid fa-eye"></i> Show
+            {% endif %}
+             </button>
               <button
                 class="menu-item delete-btn"
                 onclick="deletePost('{{ post.id }}')"
@@ -256,14 +268,14 @@
           </span>
         </div>
       </article>
-      {% empty %}
-
+      {% else %}
       <div class="no-posts-message">
         <p>No posts available. Be the first to create one!</p>
         <a href="{% url 'forums:create_post' forum_id=forum.id %}" class="create-post-link">
           <i class="fa-solid fa-plus-circle"></i> Create a Post
         </a>
       </div>
+      {% endif %}
     {% endfor %}
   
     </div>
