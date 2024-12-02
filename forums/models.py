@@ -175,8 +175,8 @@ class Comment(models.Model):
 
 # LikeComment Model (with updated related_name for user)
 class LikeComment(models.Model):
-    user = models.ForeignKey(User, related_name="liked_comments_forum", on_delete=models.CASCADE)  # Changed related_name
-    comment = models.ForeignKey(Comment, related_name="likecomment_set", on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
