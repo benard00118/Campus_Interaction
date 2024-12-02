@@ -176,7 +176,7 @@
 
         <div class="post-content">
           <h4>{{post.title}}</h4>
-          <p>{{ post.content|urlize|truncatewords:60 }}</p>
+          <p>{{ post.content|urlize|linebreaks|truncatewords:60 }}</p>
 
           {% if post.image %}
           <div class="media-container">
