@@ -18,7 +18,7 @@ def short_timesince(value):
     elif delta.days > 30:
         return f"• {delta.days // 30} mon ago •"
     elif delta.days > 0:
-        return f"• {delta.days} day ago"
+        return f"• {delta.days} day ago •"
     elif delta.seconds // 3600 > 0:
         return f"• {delta.seconds // 3600} h  ago •"
     elif delta.seconds // 60 > 0:

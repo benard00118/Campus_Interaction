@@ -181,3 +181,22 @@ class LikeComment(models.Model):
 
     class Meta:
         unique_together = ('user', 'comment')
+
+class PostFlag(models.Model):
+    CATEGORY_CHOICES = [
+        ('inappropriate', 'Inappropriate Content'),
+        ('spam', 'Spam'),
+        ('harassment', 'Harassment'),
+        ('misinformation', 'Misinformation'),
+        ('copyright', 'Copyright Violation'),
+        ('other', 'Other'),
+    ]
+
+    post = models.ForeignKey('forums.Post', on_delete=models.CASCADE, related_name='flags')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    description = models.TextField(blank=False, null=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        pass

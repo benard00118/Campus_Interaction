@@ -120,3 +120,37 @@ class CommentForm(forms.ModelForm):
             'placeholder': 'Write your comment here...'
         })
     )
+
+class PostFlagForm(forms.Form):
+    CATEGORY_CHOICES = [
+        ('inappropriate', 'Inappropriate Content'),
+        ('spam', 'Spam'),
+        ('harassment', 'Harassment'),
+        ('misinformation', 'Misinformation'),
+        ('copyright', 'Copyright Violation'),
+        ('other', 'Other'),
+    ]
+    
+    category = forms.ChoiceField(
+        choices=CATEGORY_CHOICES, 
+        widget=forms.Select(attrs={'class': 'flag-category-select'})
+    )
+    description = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'flag-description-textarea', 
+            'placeholder': 'Provide details about your flag...',
+            'required': "required",
+            'rows': 4
+        }),
+        max_length=500,
+        required=False
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get('category')
+        description = cleaned_data.get('description')
+        if category and not description:
+            raise forms.ValidationError('Please provide a description for your flag.')
+
+        return cleaned_data
