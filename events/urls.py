@@ -1,5 +1,5 @@
 # events/urls.py
-print("Loading API URLs...")  # Add this at the top of your app's urls.py
+
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested import routers
@@ -11,7 +11,8 @@ from . import api_views
 from .views import (
     EventListView,
     EventDetailView,
-    EventCreateView,
+    # EventCreateView,
+     MultiStepEventCreateView,
     CommentCreateView,
     CommentLikeToggleView,
     EventDeleteView,
@@ -41,8 +42,9 @@ urlpatterns = [
     # Main event URLs
     path('', EventListView.as_view(), name='event_list'),
     path('<int:event_id>/', EventDetailView.as_view(), name='event_detail'),
-    path('create/', EventCreateView.as_view(), name='create_event'),
+    # path('create/', EventCreateView.as_view(), name='create_event'),
     path('<int:event_id>/delete/', EventDeleteView.as_view(), name='delete_event'),
+    path('create/', MultiStepEventCreateView.as_view(), name='create_event'),
     
 
     # Comment URLs
