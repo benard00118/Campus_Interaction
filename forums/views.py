@@ -14,8 +14,9 @@ from .models import (
     PostView,
     Draft,
     LikeComment,
+    PostFlag,
 )
-from .forms import ForumForm, PostForm, CommentForm
+from .forms import ForumForm, PostForm, CommentForm, PostFlagForm
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -33,6 +34,9 @@ from django.views.decorators.csrf import csrf_protect
 import json
 from django.views.decorators.csrf import csrf_exempt
 import logging
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+
 
 # View that handles displaying the list of forums.
 class ForumListView(ListView):
@@ -175,6 +179,7 @@ class ForumDetailView(LoginRequiredMixin, DetailView):
         all_forums = Forum.objects.annotate(post_count=Count("forums_posts")).order_by(
             "-post_count"
         )
+
         forum_details = []
 
         for f in all_forums:
@@ -265,21 +270,21 @@ def search_posts(request):
 
 class CreatePostView(View):
     def get(self, request, forum_id, *args, **kwargs):
+        # Fetch the forum
         forum = get_object_or_404(Forum, id=forum_id)
         posts = forum.forums_posts.all().order_by("-created_at")
         post_count = posts.count()
         form = PostForm()
+
+        # Fetch other popular forums
         all_forums = Forum.objects.annotate(post_count=Count("forums_posts")).order_by(
             "-post_count"
         )[:5]
         forum_details = []
         user = request.user
-        comments = (
-            Comment.objects.filter(post__forum=forum)
-            .select_related("user", "post")
-            .prefetch_related("replies", "likecomment_set")
-        )
-        comment_count = comments.count()
+
+        # Check if the user is subscribed to this forum
+        user_is_sub = ForumMembership.objects.filter(user=user, forum=forum).exists()
 
         for f in all_forums:
             is_member = ForumMembership.objects.filter(user=user, forum=f).exists()
@@ -307,12 +312,29 @@ class CreatePostView(View):
                 "forum": forum,
                 "post_count": post_count,
                 "forum_details": forum_details,
-                "comment_count": comment_count,
+                "user_is_sub": user_is_sub,  # Add subscription status to the context
             },
         )
 
     def post(self, request, forum_id, *args, **kwargs):
+        # Fetch the forum
         forum = get_object_or_404(Forum, id=forum_id)
+
+        # Check if the user is subscribed to this forum
+        user_is_sub = ForumMembership.objects.filter(
+            user=request.user, forum=forum
+        ).exists()
+
+        if not user_is_sub:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "You must subscribe to this forum to create a post or draft.",
+                },
+                status=403,
+            )
+
+        # Handle draft or post creation
         form = PostForm(request.POST, request.FILES)
         is_draft = request.POST.get("is_draft", "false") == "true"
 
@@ -328,7 +350,6 @@ class CreatePostView(View):
             )
             draft.save()
 
-            # Return a success message and redirect to the drafts page
             return JsonResponse(
                 {
                     "success": True,
@@ -349,7 +370,6 @@ class CreatePostView(View):
                 post.approved = True
                 post.save()
 
-                # Redirect to the forum details page
                 return JsonResponse(
                     {
                         "success": True,
@@ -515,14 +535,14 @@ class ForumCreateView(LoginRequiredMixin, CreateView):
 @login_required
 def post_detail(request, forum_id, post_id):
     forum = get_object_or_404(Forum, id=forum_id)
-    post = get_object_or_404(Post, id=post_id, forum=forum)  # The intended post
+    post = get_object_or_404(Post, id=post_id, forum=forum)
 
     posts = forum.forums_posts.all().order_by("-created_at")
     user = request.user
-    for forum_post in posts:  # Avoid using "post" here
+    for forum_post in posts:
         forum_post.liked = forum_post.likes.filter(user=user).exists()
 
-    comments = post.comments.order_by("-created_at")  # This correctly references the `post` fetched above
+    comments = post.comments.order_by("-created_at")
 
     if user.is_authenticated:
         for comment in comments:
@@ -543,14 +563,17 @@ def post_detail(request, forum_id, post_id):
             user=left_post.user, forum=forum
         ).first()
 
+        # Assign role to the post based on the membership
         if forum.created_by == left_post.user:
-            left_post.user_role = "Main Admin"
+            left_post.user_role = "Main Admin"  # Creator of the forum
         elif membership and membership.role == "admin":
-            left_post.user_role = "Forum Admin"
+            left_post.user_role = "Admin"  # Admins
         elif membership and membership.role == "member":
-            left_post.user_role = "Member"
+            left_post.user_role = "Member"  # Forum members
+        elif not membership:
+            left_post.user_role = left_post.user.username  # Non-members, show username
         else:
-            left_post.user_role = left_post.user.username
+            left_post.user_role = None  # If no role is found, assign None
 
     post_count = left_posts.count()
 
@@ -568,7 +591,7 @@ def post_detail(request, forum_id, post_id):
                     "Main Admin"
                     if member == forum.created_by
                     else (
-                        "Forum Admin"
+                        "Admin"
                         if membership and membership.role == "admin"
                         else "Member"
                     )
@@ -621,6 +644,19 @@ def post_detail(request, forum_id, post_id):
     else:
         form = CommentForm()
 
+    # Setting the correct user role for the post (creator, admin, member, or non-member)
+    membership = ForumMembership.objects.filter(user=post.user, forum=forum).first()
+    if forum.created_by == post.user:
+        post.user_role = "Main Admin"
+    elif membership and membership.role == "admin":
+        post.user_role = "Admin"
+    elif membership and membership.role == "member":
+        post.user_role = "Member"
+    elif not membership:
+        post.user_role = post.user.username
+    else:
+        post.user_role = None
+
     return render(
         request,
         "forums/post_detail.html",
@@ -629,7 +665,7 @@ def post_detail(request, forum_id, post_id):
             "post": post,
             "forum_details": forum_details,
             "post_count": post_count,
-            "user_role": ("Main Admin" if forum.created_by == post.user else None),
+            "user_role": post.user_role,
             "left_members": left_members,
             "membership": ForumMembership.objects.filter(
                 forum=forum, user=user
@@ -640,44 +676,6 @@ def post_detail(request, forum_id, post_id):
             "comment_count": comments.count(),
         },
     )
-
-
-# View that handles managing members' roles and actions in a forum.
-class ManageMembersView(LoginRequiredMixin, View):
-    def post(self, request, forum_id, user_id):
-        forum = get_object_or_404(Forum, id=forum_id)
-        user_to_manage = get_object_or_404(User, id=user_id)
-        membership = ForumMembership.objects.filter(
-            user=user_to_manage, forum=forum
-        ).first()
-
-        if not ForumMembership.objects.filter(
-            user=request.user, forum=forum, role="admin"
-        ).exists():
-            messages.error(request, "You do not have permission to manage members.")
-            return redirect("forums:forum_detail", pk=forum.id)
-
-        action = request.POST.get("action")
-        if action == "remove" and membership:
-            membership.delete()
-            messages.success(
-                request, f"{user_to_manage.username} has been removed from the forum."
-            )
-        elif action == "make_admin" and membership:
-            membership.role = "admin"
-            membership.save()
-            messages.success(request, f"{user_to_manage.username} is now an admin.")
-        elif action == "revoke_admin" and membership:
-            membership.role = "member"
-            membership.save()
-            messages.success(
-                request,
-                f"{user_to_manage.username}'s admin privileges have been revoked.",
-            )
-        else:
-            messages.error(request, "Invalid action.")
-
-        return redirect("forums:forum_detail", pk=forum.id)
 
 
 @login_required
@@ -765,14 +763,22 @@ def drafts_page(request, forum_id):
 
 
 @login_required
-@require_http_methods(["POST"])
 @csrf_protect
 def add_comment_to_post(request, post_id):
-    """
-    Add a new comment to a post via AJAX
-    """
     try:
         post = Post.objects.get(id=post_id)
+
+        # Check if the user is a member of the forum
+        forum = post.forum  # Assuming each post belongs to a forum
+        if not forum.members.filter(id=request.user.id).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "You must be a member of the forum to comment.",
+                },
+                status=403,
+            )
+
         data = json.loads(request.body)
         content = data.get("content", "").strip()
 
@@ -783,9 +789,6 @@ def add_comment_to_post(request, post_id):
 
         # Create comment
         comment = Comment.objects.create(post=post, user=request.user, content=content)
-
-        # Get the updated comment count
-        comment_count = post.comments.count()
 
         # Prepare response data
         return JsonResponse(
@@ -798,21 +801,21 @@ def add_comment_to_post(request, post_id):
                     "profile_pic_url": (
                         comment.user.profile.profile_pic.url
                         if hasattr(comment.user, "profile")
-                        and comment.user.profile.profile_pic
                         else ""
                     ),
                     "likes_count": 0,
                     "replies_count": 0,
-                    "user_id": comment.user.id,  # Add the user_id
+                    "user_id": comment.user.id,
                 },
-                "comment_count": comment_count,  # Include the comment count
             }
         )
-
     except Post.DoesNotExist:
         return JsonResponse({"success": False, "error": "Post not found"}, status=404)
     except Exception as e:
         logging.error("Error in add_comment_to_post: %s", str(e))
+        return JsonResponse(
+            {"success": False, "error": "An error occurred."}, status=500
+        )
 
 
 @login_required
@@ -824,6 +827,20 @@ def reply_to_comment(request, comment_id):
     """
     try:
         parent_comment = get_object_or_404(Comment, id=comment_id)
+
+        # Check if the current user is a member of the post's forum
+        post = parent_comment.post
+        forum = post.forum  # Assuming each post belongs to a forum
+        if not forum.members.filter(id=request.user.id).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "You must be a member of the forum to reply to this comment.",
+                },
+                status=403,
+            )
+
+        # Proceed with processing the reply
         data = json.loads(request.body)
         content = data.get("content", "").strip()
 
@@ -860,8 +877,10 @@ def reply_to_comment(request, comment_id):
         )
 
     except Exception as e:
-                logger = logging.getLogger(__name__)
-
+        logging.error("Error in reply_to_comment: %s", str(e))
+        return JsonResponse(
+            {"success": False, "error": "An error occurred while replying."}, status=500
+        )
 
 
 @login_required
@@ -869,9 +888,19 @@ def reply_to_comment(request, comment_id):
 def like_comment(request, comment_id):
     try:
         comment = Comment.objects.get(id=comment_id)
-        user = request.user
+        forum = comment.post.forum  # Assuming each post belongs to a forum
 
-        # Check if the user has already liked the comment
+        # Check if the user is a member of the forum
+        if not forum.members.filter(id=request.user.id).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "You must be a member of the forum to like comments.",
+                },
+                status=403,
+            )
+
+        user = request.user
         like, created = LikeComment.objects.get_or_create(user=user, comment=comment)
 
         if not created:
@@ -883,7 +912,6 @@ def like_comment(request, comment_id):
         return JsonResponse(
             {"success": True, "liked": True, "likes_count": comment.like_count()}
         )
-
     except Comment.DoesNotExist:
         return JsonResponse(
             {"success": False, "error": "Comment not found"}, status=404
@@ -929,7 +957,13 @@ def check_post_updates(request, post_id):
 def delete_comment(request, comment_id):
     if request.method == "DELETE":
         comment = get_object_or_404(Comment, id=comment_id)
-        if comment.user != request.user:
+
+        # Check if the user is the comment owner or a forum member
+        forum = comment.post.forum  # Assuming each post belongs to a forum
+        if (
+            comment.user != request.user
+            and not forum.members.filter(id=request.user.id).exists()
+        ):
             return JsonResponse(
                 {"error": "You do not have permission to delete this comment."},
                 status=403,
@@ -965,3 +999,69 @@ def toggle_post_approval(request, post_id):
         {"success": False, "error": "You do not have permission to toggle this post."},
         status=403,
     )
+
+@login_required
+@require_POST
+def flag_post(request, post_id):
+    form = PostFlagForm(request.POST)
+    if form.is_valid():
+        try:
+            post = Post.objects.get(id=post_id)
+            PostFlag.objects.create(
+                post=post,
+                user=request.user,
+                category=form.cleaned_data['category'],
+                description=form.cleaned_data['description']
+            )
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Post flagged successfully'
+            })
+        except Post.DoesNotExist:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Post not found'
+            }, status=404)
+    # Send specific form errors
+    return JsonResponse({
+        'status': 'error',
+        'errors': form.errors  # Includes detailed validation errors
+    }, status=400)
+
+
+# View that handles managing members' roles and actions in a forum.
+class ManageMembersView(LoginRequiredMixin, View):
+    def post(self, request, forum_id, user_id):
+        forum = get_object_or_404(Forum, id=forum_id)
+        user_to_manage = get_object_or_404(User, id=user_id)
+        membership = ForumMembership.objects.filter(
+            user=user_to_manage, forum=forum
+        ).first()
+
+        if not ForumMembership.objects.filter(
+            user=request.user, forum=forum, role="admin"
+        ).exists():
+            messages.error(request, "You do not have permission to manage members.")
+            return redirect("forums:forum_detail", pk=forum.id)
+
+        action = request.POST.get("action")
+        if action == "remove" and membership:
+            membership.delete()
+            messages.success(
+                request, f"{user_to_manage.username} has been removed from the forum."
+            )
+        elif action == "make_admin" and membership:
+            membership.role = "admin"
+            membership.save()
+            messages.success(request, f"{user_to_manage.username} is now an admin.")
+        elif action == "revoke_admin" and membership:
+            membership.role = "member"
+            membership.save()
+            messages.success(
+                request,
+                f"{user_to_manage.username}'s admin privileges have been revoked.",
+            )
+        else:
+            messages.error(request, "Invalid action.")
+
+        return redirect("forums:forum_detail", pk=forum.id)

@@ -51,4 +51,5 @@ urlpatterns = [
     ),
     path('comments/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
     path("forum/<int:forum_id>/drafts/", views.drafts_page, name="drafts_page"),
+    path('flag_post/<int:post_id>/', views.flag_post, name='flag_post'),
 ]
