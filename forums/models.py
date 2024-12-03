@@ -128,6 +128,7 @@ class Draft(models.Model):
     video = models.FileField(upload_to="draft_videos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_posted = models.BooleanField(default=False)  
 
 
 class Like(models.Model):

@@ -36,6 +36,7 @@ from django.views.decorators.csrf import csrf_exempt
 import logging
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.utils.timezone import now
 
 
 # View that handles displaying the list of forums.
@@ -303,6 +304,12 @@ class CreatePostView(View):
                     "is_current_forum": f == forum,
                 }
             )
+        comments = (
+            Comment.objects.filter(post__forum=forum)
+            .select_related("user", "post")
+            .prefetch_related("replies", "likecomment_set")
+        )
+        comment_count = comments.count()
 
         return render(
             request,
@@ -313,6 +320,7 @@ class CreatePostView(View):
                 "post_count": post_count,
                 "forum_details": forum_details,
                 "user_is_sub": user_is_sub,  # Add subscription status to the context
+                "comment_count": comment_count,
             },
         )
 
@@ -337,6 +345,8 @@ class CreatePostView(View):
         # Handle draft or post creation
         form = PostForm(request.POST, request.FILES)
         is_draft = request.POST.get("is_draft", "false") == "true"
+        
+
 
         if is_draft:
             # Save the draft post
@@ -549,11 +559,13 @@ def post_detail(request, forum_id, post_id):
             comment.is_liked = comment.likecomment_set.filter(user=user).exists()
             for reply in comment.replies.all():
                 reply.is_liked = reply.likecomment_set.filter(user=user).exists()
+                print(f"Reply ID {reply.id}, is_liked: {reply.is_liked}")
+
     else:
         for comment in comments:
             comment.is_liked = False
             for reply in comment.replies.all():
-                reply.is_liked = False
+                reply.is_liked = False  
 
     left_posts = forum.forums_posts.all().order_by("-created_at")
 
@@ -656,6 +668,7 @@ def post_detail(request, forum_id, post_id):
         post.user_role = post.user.username
     else:
         post.user_role = None
+    liked_reply_ids = post.comments.filter(replies__likecomment__user=user).values_list('replies__id', flat=True)
 
     return render(
         request,
@@ -674,6 +687,7 @@ def post_detail(request, forum_id, post_id):
             "form": form,
             "comments": comments,
             "comment_count": comments.count(),
+            "liked_reply_ids": liked_reply_ids,
         },
     )
 
@@ -681,10 +695,19 @@ def post_detail(request, forum_id, post_id):
 @login_required
 def drafts_page(request, forum_id):
     forum = get_object_or_404(Forum, id=forum_id)
-    drafts = Draft.objects.filter(user=request.user, forum=forum).order_by(
+
+    # Auto-delete drafts older than 7 days
+    one_week_ago = now() - timedelta(days=7)
+    Draft.objects.filter(
+        user=request.user, forum=forum, is_posted=False, created_at__lt=one_week_ago
+    ).delete()
+
+    # Retrieve updated drafts after auto-delete
+    drafts = Draft.objects.filter(user=request.user, forum=forum, is_posted=False).order_by(
         "-created_at"
     )
     drafts_count = drafts.count()
+
     comments = (
         Comment.objects.filter(post__forum=forum)
         .select_related("user", "post")
@@ -694,6 +717,9 @@ def drafts_page(request, forum_id):
     comment_count = comments.count()
     posts = forum.forums_posts.all().order_by("-created_at")
     post_count = posts.count()
+    left_members = LeftForumMembership.objects.filter(forum=forum)
+
+
     members_with_roles = []
     for member in forum.members.all():
         membership = ForumMembership.objects.filter(user=member, forum=forum).first()
@@ -722,7 +748,8 @@ def drafts_page(request, forum_id):
         )
 
     members_with_roles.sort(key=lambda x: x["is_admin"], reverse=True)
-    all_forums = Forum.objects.all().order_by("-created_at")
+    
+    all_forums = Forum.objects.annotate(post_count=Count('forums_posts')).order_by('-post_count', '-created_at')
     forum_details = []
 
     for f in all_forums:
@@ -758,10 +785,34 @@ def drafts_page(request, forum_id):
             "members_with_roles": members_with_roles,
             "forum_details": forum_details,
             "drafts_count": drafts_count,
+            "left_members" : left_members,
         },
     )
+def post_draft(request, draft_id):
+    if request.method == "POST":
+        draft = get_object_or_404(Draft, id=draft_id)
+        if request.user == draft.user:
+            post = Post.objects.create(
+                forum=draft.forum,
+                user=draft.user,
+                title=draft.title,
+                content=draft.content,
+                image=draft.image,
+                video=draft.video,
+            )
+            draft.is_posted = True
+            draft.save()
 
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Draft posted successfully!',
+                'draft_id': draft_id,
+                'post_id': post.id
+            })
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
 
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 @login_required
 @csrf_protect
 def add_comment_to_post(request, post_id):
@@ -1000,6 +1051,7 @@ def toggle_post_approval(request, post_id):
         status=403,
     )
 
+
 @login_required
 @require_POST
 def flag_post(request, post_id):
@@ -1010,23 +1062,18 @@ def flag_post(request, post_id):
             PostFlag.objects.create(
                 post=post,
                 user=request.user,
-                category=form.cleaned_data['category'],
-                description=form.cleaned_data['description']
+                category=form.cleaned_data["category"],
+                description=form.cleaned_data["description"],
             )
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Post flagged successfully'
-            })
+            return JsonResponse(
+                {"status": "success", "message": "Post flagged successfully"}
+            )
         except Post.DoesNotExist:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Post not found'
-            }, status=404)
+            return JsonResponse(
+                {"status": "error", "message": "Post not found"}, status=404
+            )
     # Send specific form errors
-    return JsonResponse({
-        'status': 'error',
-        'errors': form.errors  # Includes detailed validation errors
-    }, status=400)
+    return JsonResponse({"status": "error", "errors": form.errors}, status=400)
 
 
 # View that handles managing members' roles and actions in a forum.
@@ -1065,3 +1112,29 @@ class ManageMembersView(LoginRequiredMixin, View):
             messages.error(request, "Invalid action.")
 
         return redirect("forums:forum_detail", pk=forum.id)
+
+
+def manage_forum(request, forum_id):
+    forum = get_object_or_404(Forum, id=forum_id)
+    user = request.user
+    posts = forum.forums_posts.all().order_by("-created_at")
+    post_count = posts.count()
+    comments = (
+            Comment.objects.filter(post__forum=forum)
+            .select_related("user", "post")
+            .prefetch_related("replies", "likecomment_set")
+        )
+    comment_count = comments.count()
+    return render(
+        request,
+        "forums/manage.html",
+        {
+            "forum_id": forum_id,
+            "forum": forum,
+            "membership": ForumMembership.objects.filter(
+                forum=forum, user=user
+            ).first(),
+            "post_count": post_count,
+            "comment_count": comment_count,
+        },
+    )
