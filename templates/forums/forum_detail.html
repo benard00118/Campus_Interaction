@@ -2,6 +2,8 @@
 {% endblock %} {% block content %}{% load custom_filters %} {% load static %}
 
 <link rel="stylesheet" href="{% static 'css/forum/forum_detail.css' %}" />
+<link rel="stylesheet" href="{% static 'css/forum/add_topic.css' %}" />
+
 <!-- Include Plyr CSS -->
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
 <!-- Include Plyr JS -->
@@ -140,10 +142,14 @@
 
           <!-- Post Options Menu -->
           <div class="post-options">
+            
             <button class="options-btn" onclick="toggleMenu('{{ post.id }}')">
               <i class="fa-solid fa-ellipsis"></i>
             </button>
+            
+            
             <div class="options-menu" id="menu-{{ post.id }}">
+              {% if membership %}
               {% if user == post.user %}
               <button
                 class="menu-item"
@@ -166,11 +172,22 @@
                 <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
               </button>
               {% else %}
-              <button class="menu-item">
+              
+              <button class="menu-item" onclick="openFlagModal('{{ post.id }}')">
                 <i class="fa-solid fa-flag"></i> Flag
               </button>
               {% endif %}
+              {% if post.imag or post.video %}
+              <button class="menu-item" id="download_image_video">
+                  <i class="fa fa-download" aria-hidden="true"></i> Save
+              </button>
+              {% endif %}
+              {% else %}
+              <p class="menu-item" style="color: red">Must subscribe to see menu</p>
+              {% endif %}
             </div>
+            
+
           </div>
         </div>
 
@@ -333,8 +350,10 @@
     </div>
   </div>
 </div>
+<!-- Flag Post -->
+ {% include "forums/flag_topics.html" %}
 <!-- Partial JS-->
-{% include "forums/all_scripts.html"%}
+{% include "forums/all_scripts.html" %}
 <!-- Video Player -->
 <script>
   document.addEventListener("DOMContentLoaded", () => {

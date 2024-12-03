@@ -14,6 +14,10 @@
 <script src="{% static 'js/forum/forum_details.js' %}"></script>
 <script src="{% static 'js/forum/create__topic.js' %}"></script>
 
+
+
+
+{% if user_is_sub %}
 <div class="subscribe">
   <div class="">
     <div class="sub-message">
@@ -208,6 +212,32 @@
   </div>
   <div class="members"></div>
 </div>
+
+{% else %}
+
+<div class="subscribe-modal">
+  <div class="subscribe-error">
+      <div class="modal-header">
+          <i class="fas fa-exclamation-triangle modal-icon"></i>
+          <h4 class="modal-title">Access Restricted</h4>
+      </div>
+      <p class="modal-description">
+          You must subscribe to this forum to create a post or interact with it. Click the button below to subscribe and unlock full access.
+      </p>
+      <button 
+          class="subscribe-button" 
+          onclick="window.location.href='http://0.0.0.0:5000/forums/{{forum.id}}/'">
+          Subscribe Now
+      </button>
+      <br>
+      <button 
+          class="modal-cancel-button" 
+          onclick="window.location.href='/'">
+          Cancel
+      </button>
+  </div>
+</div>
+{% endif %}
 <!-- Drag and Drop -->
 <script>
 document.addEventListener("DOMContentLoaded", function () {

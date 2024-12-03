@@ -529,13 +529,15 @@
   });
 </script>
 
-<!-- Comment Reply and Like Comment -->
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const postId = document.querySelector("article.post").id.split("-")[1];
     const csrfToken = document.querySelector(
       "[name=csrfmiddlewaretoken]"
     ).value;
+    const currentUserId = document
+      .querySelector("article.post")
+      .getAttribute("data-current-user-id");
 
     function setupReplyToggleListeners() {
       const toggleButtons = document.querySelectorAll(".toggle-replies");
@@ -559,6 +561,27 @@
       });
     }
 
+    function showErrorMessage(message) {
+      const errorMessage = document.createElement("div");
+      errorMessage.classList.add("error-message");
+      errorMessage.textContent = message;
+      errorMessage.style.position = "fixed";
+      errorMessage.style.bottom = "20px";
+      errorMessage.style.left = "50%";
+      errorMessage.style.transform = "translateX(-50%)";
+      errorMessage.style.backgroundColor = "#dc3545";
+      errorMessage.style.color = "#fff";
+      errorMessage.style.padding = "10px 20px";
+      errorMessage.style.borderRadius = "5px";
+      errorMessage.style.zIndex = "9999";
+      errorMessage.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
+      document.body.appendChild(errorMessage);
+
+      setTimeout(() => {
+        errorMessage.remove();
+      }, 3000);
+    }
+
     setupReplyToggleListeners();
 
     function convertUrlsToLinks(text) {
@@ -568,68 +591,77 @@
       });
     }
 
-    function createCommentHTML(comment, isReply = false, currentUserId) {
+    function createCommentHTML(comment, isReply = false) {
       const likesCount = comment.likes_count || 0;
       const repliesCount = comment.replies_count || 0;
 
       const contentWithLinks = convertUrlsToLinks(comment.content);
+      console.log("currentUserId:", currentUserId);
+      console.log("comment.user_id:", comment.user_id);
 
       return `
-        <div class="comment ${
-          isReply ? "reply" : ""
-        }" data-comment-id="${comment.id}">
-            <div class="comment-author">
-                <img src="${
-                  comment.profile_pic_url
-                }" alt="${comment.username} Profile" />
-                <span class="comment-username">${comment.username}</span>
-                <span class="comment__posted_time">• Just now •</span>
-            </div>
-            <div class="comment-content">${contentWithLinks}</div>
-            <div class="comment-actions">
-                <button class="like-button" data-comment-id="${comment.id}">
-                    <i class="fa fa-thumbs-up" aria-hidden="true"></i> ${likesCount}
-                </button>
-                <button class="reply-button" data-comment-id="${comment.id}">
-                    <i class="fa fa-comment" aria-hidden="true"></i> ${repliesCount}
-                </button>
-                ${
-                  comment.user_id === currentUserId
-                    ? `
-                            <button data-comment-id="${comment.id}" class="delete-comment-btn">
-                                <i class="fa fa-trash" aria-hidden="true"></i>
-                            </button>
-                        `
-                    : ""
-                }
-                <button data-comment-id="${
+            <div class="comment ${
+              isReply ? "reply" : ""
+            }" data-comment-id="${comment.id}">
+                <div class="comment-author">
+                    <img src="${
+                      comment.profile_pic_url || "/static/default-profile.png"
+                    }" alt="${comment.username} Profile" />
+                    <span class="comment-username">${comment.username}</span>
+                    <span class="comment__posted_time">• Just now •</span>
+                </div>
+                <div class="comment-content">${contentWithLinks}</div>
+                <div class="comment-actions">
+                    <button class="like-button ${
+                      comment.liked ? "liked" : ""
+                    }" data-comment-id="${comment.id}">
+                        <i class="fa fa-thumbs-up" aria-hidden="true"></i> ${likesCount}
+                    </button>
+                    <button class="reply-button" data-comment-id="${
+                      comment.id
+                    }">
+                        <i class="fa fa-comment" aria-hidden="true"></i> ${repliesCount}
+                    </button>
+                    ${
+                      comment.user_id == currentUserId
+                        ? `
+                        <button data-comment-id="${comment.id}" class="delete-comment-btn">
+                            <i class="fa fa-trash" aria-hidden="true"></i>
+                        </button>
+                    `
+                        : ""
+                    }
+                    <button data-comment-id="${
+                      comment.id
+                    }" class="share-comment-button">
+                        <i class="fa fa-share" aria-hidden="true"></i> Share
+                    </button>
+                </div>
+                <div id="reply-form-${
                   comment.id
-                }" class="share-comment-button">
-                    <i class="fa fa-share" aria-hidden="true"></i> Share
-                </button>
-            </div>
-            <div id="reply-form-${
-              comment.id
-            }" class="reply-form" style="display: none;">
-                <form data-comment-id="${comment.id}">
-                    <div class="reply__wrap">
-                        <textarea name="content" placeholder="Write your reply here..."></textarea>
-                        <div class="buttons-container">
-                            <button type="button" class="cancel-reply-button">Cancel</button>
-                            <button type="submit" class="submit-reply-button">Post Reply</button>
+                }" class="reply-form" style="display: none;">
+                    <form data-comment-id="${comment.id}">
+                        <div class="reply__wrap">
+                            <textarea name="content" placeholder="Write your reply here..."></textarea>
+                            <div class="buttons-container">
+                                <button type="button" class="cancel-reply-button">Cancel</button>
+                                <button type="submit" class="submit-reply-button">Post Reply</button>
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
+                </div>
+                <div class="replies-container" id="replies-container-${
+                  comment.id
+                }"></div>
             </div>
-            <div class="replies-container" style="display: none;"></div>
-        </div>
-    `;
+        `;
     }
 
     function appendCommentHTML(commentHTML, parent = null) {
       if (parent) {
         let repliesContainer = parent.querySelector(".replies-container");
         repliesContainer.insertAdjacentHTML("beforeend", commentHTML);
+        repliesContainer.style.display = "block";
       } else {
         const commentsSection = document.querySelector(".comments-section");
         if (commentsSection.querySelector(".no-comments")) {
@@ -641,20 +673,23 @@
 
     function updateCommentCount(increase = 1) {
       const commentCountElement = document.getElementById("posts-count");
-      const currentCount = parseInt(
-        commentCountElement.textContent.split(" ")[0]
-      );
-      commentCountElement.innerHTML = `${
-        currentCount + increase
-      } <span>Comments</span>`;
+      if (commentCountElement) {
+        const currentCount = parseInt(
+          commentCountElement.textContent.split(" ")[0]
+        );
+        commentCountElement.innerHTML = `${
+          currentCount + increase
+        } <span>Comments</span>`;
+      }
     }
 
-    function setupListeners() {
-      const likeButtons = document.querySelectorAll(".like-button");
-      likeButtons.forEach((button) => {
-        button.addEventListener("click", function (event) {
+    function setupCommentInteractions() {
+      // Like Button Handler
+      document.addEventListener("click", function (event) {
+        const likeButton = event.target.closest(".like-button");
+        if (likeButton) {
           event.preventDefault();
-          const commentId = button.dataset.commentId;
+          const commentId = likeButton.dataset.commentId;
           fetch(`/forums/comments/${commentId}/like/`, {
             method: "POST",
             headers: {
@@ -665,64 +700,61 @@
             .then((response) => response.json())
             .then((data) => {
               if (data.success) {
-                button.innerHTML = `<i class="fa fa-thumbs-up" aria-hidden="true"></i> ${data.likes_count}`;
-                if (data.liked) {
-                  button.classList.add("liked");
-                } else {
-                  button.classList.remove("liked");
-                }
+                likeButton.innerHTML = `<i class="fa fa-thumbs-up" aria-hidden="true"></i> ${data.likes_count}`;
+                likeButton.classList.toggle("liked", data.liked);
+              } else {
+                showErrorMessage(data.error || "Unable to like comment");
               }
             })
-            .catch((error) => console.error("Error:", error));
-        });
+            .catch((error) => {
+              console.error("Error:", error);
+              showErrorMessage("An error occurred while liking the comment.");
+            });
+        }
       });
 
-      const replyButtons = document.querySelectorAll(".reply-button");
-      replyButtons.forEach((button) => {
-        button.addEventListener("click", function () {
-          const commentId = button.dataset.commentId;
+      // Reply Button Handler
+      document.addEventListener("click", function (event) {
+        const replyButton = event.target.closest(".reply-button");
+        if (replyButton) {
+          const commentId = replyButton.dataset.commentId;
           const replyForm = document.getElementById(`reply-form-${commentId}`);
           const repliesContainer = document.getElementById(
             `replies-container-${commentId}`
           );
-          const toggleRepliesButton = document.querySelector(
-            `.toggle-replies[data-comment-id="${commentId}"]`
-          );
+
+          // Hide all other reply forms
           document.querySelectorAll(".reply-form").forEach((form) => {
             if (form.id !== `reply-form-${commentId}`) {
               form.style.display = "none";
             }
           });
+
+          // Toggle current reply form
           replyForm.style.display =
-            replyForm.style.display === "none" || replyForm.style.display === ""
-              ? "block"
-              : "none";
-          if (replyForm.style.display === "block") {
-            repliesContainer.style.display = "block";
-            if (toggleRepliesButton) {
-              toggleRepliesButton.textContent = "-";
-            }
-          }
-        });
+            replyForm.style.display === "none" ? "block" : "none";
+          repliesContainer.style.display = "block";
+        }
       });
 
-      const cancelReplyButtons = document.querySelectorAll(
-        ".cancel-reply-button"
-      );
-      cancelReplyButtons.forEach((button) => {
-        button.addEventListener("click", function () {
-          const replyForm = button.closest(".reply-form");
+      // Cancel Reply Button Handler
+      document.addEventListener("click", function (event) {
+        const cancelButton = event.target.closest(".cancel-reply-button");
+        if (cancelButton) {
+          const replyForm = cancelButton.closest(".reply-form");
           replyForm.style.display = "none";
           replyForm.querySelector("textarea").value = "";
-        });
+        }
       });
 
-      const replyForms = document.querySelectorAll(".reply-form form");
-      replyForms.forEach((form) => {
-        form.addEventListener("submit", function (event) {
+      // Submit Reply Handler
+      document.addEventListener("submit", function (event) {
+        const replyForm = event.target.closest(".reply-form form");
+        if (replyForm) {
           event.preventDefault();
-          const commentId = form.dataset.commentId;
-          const content = form.querySelector("textarea").value.trim();
+          const commentId = replyForm.dataset.commentId;
+          const content = replyForm.querySelector("textarea").value.trim();
+
           if (content) {
             fetch(`/forums/comments/${commentId}/reply/`, {
               method: "POST",
@@ -740,28 +772,37 @@
                   );
                   const newReplyHTML = createCommentHTML(data.comment, true);
                   appendCommentHTML(newReplyHTML, parentComment);
-                  form.querySelector("textarea").value = "";
-                  form.closest(".reply-form").style.display = "none";
+
+                  replyForm.querySelector("textarea").value = "";
+                  replyForm.style.display = "none";
+
                   const replyButton =
                     parentComment.querySelector(".reply-button");
                   const currentCount = parseInt(
-                    replyButton.textContent.match(/\d+/)[0]
+                    replyButton.textContent.match(/\d+/)[0] || 0
                   );
                   replyButton.innerHTML = `<i class="fa fa-comment" aria-hidden="true"></i> ${
                     currentCount + 1
                   }`;
+
                   updateCommentCount();
+                } else {
+                  showErrorMessage(data.error || "Unable to submit reply");
                 }
               })
-              .catch((error) => console.error("Error:", error));
+              .catch((error) => {
+                console.error("Error:", error);
+                showErrorMessage("An error occurred while submitting reply.");
+              });
           }
-        });
+        }
       });
 
-      const deleteButtons = document.querySelectorAll(".delete-comment-btn");
-      deleteButtons.forEach((button) => {
-        button.addEventListener("click", function () {
-          const commentId = button.dataset.commentId;
+      // Delete Comment Handler
+      document.addEventListener("click", function (event) {
+        const deleteButton = event.target.closest(".delete-comment-btn");
+        if (deleteButton) {
+          const commentId = deleteButton.dataset.commentId;
           fetch(`/forums/comments/${commentId}/delete/`, {
             method: "DELETE",
             headers: {
@@ -774,119 +815,126 @@
                 const commentElement = document.querySelector(
                   `.comment[data-comment-id="${commentId}"]`
                 );
-                commentElement.remove();
-                updateCommentCount(-1);
+                if (commentElement) {
+                  commentElement.remove();
+                  updateCommentCount(-1);
+                }
               }
             })
             .catch((error) => console.error("Error:", error));
-        });
-      });
-    }
-
-    const commentForm = document.getElementById("comment-form");
-    const textarea = commentForm.querySelector("textarea");
-    const textareaContainer = commentForm.querySelector(".textarea-container");
-
-    textarea.addEventListener("focus", function () {
-      textareaContainer.classList.add("expanded");
-      textarea.style.height = "auto";
-      textareaContainer.style.border = "1px solid #00000038";
-    });
-
-    textarea.addEventListener("input", function () {
-      textarea.style.height = "auto";
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    });
-
-    const cancelButton = commentForm.querySelector(".cancel-button");
-    cancelButton.addEventListener("click", function () {
-      textareaContainer.classList.remove("expanded");
-      textareaContainer.style.border = "none";
-      textarea.value = "";
-      textarea.style.height = "auto";
-    });
-
-    commentForm.addEventListener("submit", function (event) {
-      event.preventDefault();
-      const content = textarea.value.trim();
-      if (content) {
-        fetch(`/forums/post/${postId}/add_comment/`, {
-          method: "POST",
-          headers: {
-            "X-CSRFToken": csrfToken,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ content: content }),
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.success) {
-              const newCommentHTML = createCommentHTML(data.comment);
-              appendCommentHTML(newCommentHTML);
-              textarea.value = "";
-              updateCommentCount();
-            }
-          })
-          .catch((error) => console.error("Error:", error));
-      }
-    });
-
-    setupListeners();
-  });
-</script>
-
-<script>
-  document.addEventListener("DOMContentLoaded", function () {
-    const shareButtons = document.querySelectorAll(".share-comment-button");
-
-    shareButtons.forEach((button) => {
-      button.addEventListener("click", function (event) {
-        event.stopPropagation(); // Prevent the event from bubbling up
-        const commentId = button.getAttribute("data-comment-id");
-        const articleElement = document.querySelector("article.post");
-        const forumId = articleElement.getAttribute("data-forum-id");
-        const postId = articleElement.id.split("-")[1];
-        const shareLink = `${window.location.origin}/forums/forum/${forumId}/post/${postId}?comment_id=${commentId}`;
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard
-            .writeText(shareLink)
-            .then(() => {
-              showShareSuccessMessage();
-              console.log("Link copied to clipboard: " + shareLink);
-            })
-            .catch((err) => {
-              console.error("Error copying link: ", err);
-            });
-        } else {
-          fallbackCopyToClipboard(shareLink);
-          showShareSuccessMessage();
         }
       });
-    });
+
+      // Main Comment Form Handler
+      const commentForm = document.getElementById("comment-form");
+      if (commentForm) {
+        const textarea = commentForm.querySelector("textarea");
+        const textareaContainer = commentForm.querySelector(
+          ".textarea-container"
+        );
+
+        textarea.addEventListener("focus", function () {
+          textareaContainer.classList.add("expanded");
+          textarea.style.height = "auto";
+          textareaContainer.style.border = "1px solid #00000038";
+        });
+
+        textarea.addEventListener("input", function () {
+          textarea.style.height = "auto";
+          textarea.style.height = `${textarea.scrollHeight}px`;
+        });
+
+        const cancelButton = commentForm.querySelector(".cancel-button");
+        cancelButton.addEventListener("click", function () {
+          textareaContainer.classList.remove("expanded");
+          textareaContainer.style.border = "none";
+          textarea.value = "";
+          textarea.style.height = "auto";
+        });
+
+        commentForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          const content = textarea.value.trim();
+
+          if (content) {
+            fetch(`/forums/post/${postId}/add_comment/`, {
+              method: "POST",
+              headers: {
+                "X-CSRFToken": csrfToken,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ content: content }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.success) {
+                  const newCommentHTML = createCommentHTML(data.comment);
+                  appendCommentHTML(newCommentHTML);
+                  textarea.value = "";
+                  updateCommentCount();
+                } else {
+                  showErrorMessage(data.error || "Unable to post comment");
+                }
+              })
+              .catch((error) => {
+                console.error("Error:", error);
+                showErrorMessage("An error occurred while posting comment.");
+              });
+          }
+        });
+      }
+    }
+
+    // Share Comment Functionality
+    function setupShareButtons() {
+      document.addEventListener("click", function (event) {
+        const shareButton = event.target.closest(".share-comment-button");
+        if (shareButton) {
+          event.stopPropagation();
+          const commentId = shareButton.getAttribute("data-comment-id");
+          const articleElement = document.querySelector("article.post");
+          const forumId = articleElement.getAttribute("data-forum-id");
+          const postId = articleElement.id.split("-")[1];
+          const shareLink = `${window.location.origin}/forums/forum/${forumId}/post/${postId}?comment_id=${commentId}`;
+
+          // Use Clipboard API with fallback
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard
+              .writeText(shareLink)
+              .then(() => {
+                showShareSuccessMessage(shareLink);
+              })
+              .catch((err) => {
+                console.error("Error copying link: ", err);
+                fallbackCopyToClipboard(shareLink);
+              });
+          } else {
+            fallbackCopyToClipboard(shareLink);
+          }
+        }
+      });
+    }
 
     function fallbackCopyToClipboard(text) {
       const textArea = document.createElement("textarea");
       textArea.value = text;
       document.body.appendChild(textArea);
-      textArea.style.position = "fixed";
-      textArea.style.top = "-1000px";
-      textArea.focus();
       textArea.select();
       try {
-        document.execCommand("copy");
-        console.log("Fallback: Link copied to clipboard: " + text);
+        const successful = document.execCommand("copy");
+        if (successful) {
+          showShareSuccessMessage(text);
+        }
       } catch (err) {
         console.error("Fallback: Unable to copy", err);
       }
       document.body.removeChild(textArea);
     }
 
-    function showShareSuccessMessage() {
+    function showShareSuccessMessage(link) {
       const successMessage = document.createElement("div");
       successMessage.classList.add("share-success-message");
       successMessage.textContent = "Comment link copied to clipboard!";
-      document.body.appendChild(successMessage);
       successMessage.style.position = "fixed";
       successMessage.style.bottom = "20px";
       successMessage.style.left = "50%";
@@ -895,35 +943,141 @@
       successMessage.style.color = "#fff";
       successMessage.style.padding = "10px 20px";
       successMessage.style.borderRadius = "5px";
-      successMessage.style.fontSize = "16px";
       successMessage.style.zIndex = "9999";
       successMessage.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.1)";
+      document.body.appendChild(successMessage);
+
       setTimeout(() => {
-        successMessage.style.display = "none";
+        successMessage.remove();
       }, 3000);
     }
-  });
 
-  document.addEventListener("DOMContentLoaded", function () {
-    const urlParams = new URLSearchParams(window.location.search);
-    const commentId = urlParams.get("comment_id");
+    function setupHighlightComment() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const commentId = urlParams.get("comment_id");
 
-    if (commentId) {
-      const targetComment = document.querySelector(
-        `.comment[data-comment-id="${commentId}"]`
-      );
+      if (commentId) {
+        const targetComment = document.querySelector(
+          `.comment[data-comment-id="${commentId}"]`
+        );
 
-      if (targetComment) {
-        targetComment.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (targetComment) {
+          targetComment.scrollIntoView({ behavior: "smooth", block: "center" });
 
-        let blinkCount = 0;
-        const interval = setInterval(() => {
-          targetComment.style.backgroundColor =
-            blinkCount % 2 === 0 ? "#e9f5ff" : "";
-          blinkCount++;
-          if (blinkCount === 6) clearInterval(interval);
-        }, 500);
+          let blinkCount = 0;
+          const interval = setInterval(() => {
+            targetComment.style.backgroundColor =
+              blinkCount % 2 === 0 ? "#e9f5ff" : "";
+            blinkCount++;
+            if (blinkCount === 6) clearInterval(interval);
+          }, 500);
+        }
       }
     }
+
+    // Initial setup
+    setupCommentInteractions();
+    setupShareButtons();
+    setupHighlightComment();
   });
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const flagPostModal = document.getElementById('flagPostModal');
+    const flagPostForm = document.getElementById('flagPostForm');
+    const flagErrorMessage = document.getElementById('flagErrorMessage');
+
+    window.openFlagModal = (postId) => {
+        flagPostForm.dataset.postId = postId;
+        flagPostModal.style.display = 'flex';
+    };
+
+    window.closeFlagModal = () => {
+        flagPostModal.style.display = 'none';
+        flagPostForm.reset();
+        flagErrorMessage.textContent = '';
+    };
+
+    function showNotification(message) {
+        let notification = document.createElement('div');
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.bottom = '10px';
+        notification.style.left = '50%';
+        notification.style.transform = 'translateX(-50%)';
+        notification.style.backgroundColor = '#4caf50';
+        notification.style.color = 'white';
+        notification.style.padding = '10px';
+        notification.style.borderRadius = '5px';
+        notification.style.zIndex = '1000';
+        notification.style.display = 'block';
+        notification.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.2)';
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 500);
+        }, 3000);
+    }
+
+    flagPostForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const postId = flagPostForm.dataset.postId;
+        const category = flagPostForm.querySelector('.flag-category-select').value;
+        const description = flagPostForm.querySelector('.flag-description-textarea').value;
+
+        if (!category) {
+            flagErrorMessage.textContent = 'Please select a flag category.';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/forums/flag_post/${postId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `category=${encodeURIComponent(category)}&description=${encodeURIComponent(description)}`
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                showNotification(result.message || 'Post flagged successfully');
+                closeFlagModal();
+            } else if (result.status === 'error') {
+                if (result.errors) {
+                    // Display detailed error messages for specific fields
+                    const errorMessages = Object.values(result.errors).join(', ');
+                    flagErrorMessage.textContent = errorMessages;
+                } else {
+                    // Fallback error message
+                    flagErrorMessage.textContent = result.message || 'Failed to flag post';
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            flagErrorMessage.textContent = 'An unexpected error occurred';
+        }
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+
 </script>
