@@ -1,0 +1,90 @@
+{% extends 'base.html' %} {% block title %}{{ forum.name }} - Forum Details 
+{% endblock %} {% block content %}{% load custom_filters %} {% load static %}
+
+
+<link rel="stylesheet" href="{% static 'css/forum/forum_detail.css' %}" />
+<link rel="stylesheet" href="{% static 'css/forum/add_topic.css' %}" />
+
+<!-- Include Plyr CSS -->
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<!-- Include Plyr JS -->
+<script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+<!-- Posting -->
+<script src="{% static 'js/forum/forum_details.js' %}"></script>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@100..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<!-- Forum Header -->
+<div class="py-5" style="position: relative; color: #fff">
+  {% if forum.display_picture %}
+  <div
+    style="
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    "
+  >
+    <img
+      src="{{ forum.display_picture.url }}"
+      alt="{{ forum.name }}"
+      style="
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        filter: brightness(0.7);
+      "
+    />
+  </div>
+  {% else %}
+  <div
+    style="
+      background-color: #4b00ff;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    "
+  ></div>
+  {% endif %}
+
+  <div class="container forum-header">
+    <div class="row">
+      <div class="col-lg-6">
+        <h1 class="display-5" style="text-transform: uppercase">
+          {{ forum.name }}
+        </h1>
+        <p class="lead">
+          <span class="forum-description">
+            Stay up to date with the latest discussions and news in the
+            <span
+              style="
+                text-transform: uppercase;
+                font-style: italic;
+                font-size: 14px;
+              "
+            >
+              {{ forum.name }}</span
+            >
+            Forum <i class="fa-brands fa-forumbee"></i>
+          </span>
+          <br />
+          <span class="forum-text"
+            >{{ forum.description }}
+          </span>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JOIN GROUP... -->
+{% include "forums/join.html"%}
+{% endblock %}

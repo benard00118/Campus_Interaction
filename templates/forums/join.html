@@ -48,7 +48,8 @@
           >
             <button id="messages-btn-admin" class="messages-btn"><i class="fa-solid fa-message"></i></button>
             <button id="messages-btn" class="create"><a href="{% url 'forums:create_post' forum_id=forum.id %}"><i class="fa-solid fa-plus"></i> Topic</a></button>
-            <button id="manage-btn" class="manage-btn">Manage</button>
+            <button id="manage-btn" class="manage-btn"  class="manage-btn"><a href="{% url 'forums:manage_forum' forum_id=forum.id %}">Manage</a>
+            </button>
           </div>
         </div>
       </div>

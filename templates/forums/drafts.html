@@ -4,6 +4,8 @@
 <link rel="stylesheet" href="{% static 'css/forum/forum_detail.css' %}" />
 <!-- Include Plyr CSS -->
 <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<link rel="stylesheet" href="{% static 'css/forum/add_topic.css' %}" />
+
 <!-- Include Plyr JS -->
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <!-- Posting -->
@@ -90,7 +92,70 @@
   </div>
 </div>
 <!-- JOIN GROUP... -->
-{% include "forums/join.html"%}
+<div class="subscribe">
+  <div class="">
+    <div class="sub-message">
+      <div class="discussion-comments">
+        <p class="back-btn">
+          <a
+            href="{% url 'forums:create_post' forum.id %}"
+            class="forum-card-overlay"
+            ><i class="fa-solid fa-arrow-left"></i
+          ></a>
+        </p>
+        <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
+        <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
+        <p id="topics-count" class="topics-count">
+          {{ post_count }} <span>Topics</span>
+        </p>
+      </div>
+      <div class="search-container">
+        <div class="input-group">
+          <input
+            type="text"
+            autocomplete="off"
+            class="form-control"
+            id="forum-search-input"
+            placeholder="Search {{ forum.name }}"
+            data-forum-id="{{ forum.id }}" 
+          />
+        </div>
+        <!-- This div will hold the search suggestions -->
+        <div id="search-suggestions" class="search-suggestions"></div>
+      </div>
+      <div class="subscribe-message" id="membership-controls">
+        <!-- Non-member controls -->
+        <div
+          id="non-member-controls"
+          class="{% if membership %}hidden{% endif %}"
+        >
+          <button id="subscribe-btn" class="subscribe-btn">Subscribe</button>
+        </div>
+        <!-- Member controls -->
+        <div
+          id="member-controls"
+          class="{% if not membership or membership.role != 'member' %}hidden{% endif %}"
+        >
+        <button id="messages-btn" class="messages-btn"><i class="fa-solid fa-message"></i></button>
+        <button id="messages-btn" class="create" ><a href="{% url 'forums:create_post' forum_id=forum.id %}"><i class="fa-solid fa-plus"></i> Topic</a></button>
+          {% if forum.created_by != request.user %}
+          <button id="leave-btn" class="leave-btn">Leave</button>
+          {% endif %}
+        </div>
+        <!-- Admin controls -->
+        <div
+          id="admin-controls"
+          class="{% if not membership or membership.role != 'admin' %}hidden{% endif %}"
+        >
+          <button id="messages-btn-admin" class="messages-btn"><i class="fa-solid fa-message"></i></button>
+          <button id="messages-btn" class="create"><a href="{% url 'forums:create_post' forum_id=forum.id %}"><i class="fa-solid fa-plus"></i> Topic</a></button>
+          <button id="manage-btn" class="manage-btn"  class="manage-btn"><a href="{% url 'forums:manage_forum' forum_id=forum.id %}">Manage</a>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- Drafts AND MEMBERS LIST -->
 <div class="post-container">
   {% include "forums/members.html"%}
@@ -104,7 +169,36 @@
       </select>
     </div>
     <div data-posts-container class="posts-container">
-      {% if drafts %} {% for draft in drafts %}
+      {% if drafts %}
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 5px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            background-color: #f8d7da;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            font-size: 16px;
+            color: #721c24;
+          "
+        >
+          <i
+            class="fa-solid fa-trash"
+            style="color: #c0111a; margin-right: 10px"
+          ></i>
+          <span>Auto-deletion after 1 week</span>
+        </div>
+      </div>
+      {% for draft in drafts %}
+
       <article class="post" id="post-{{ draft.id }}">
         <div class="author__options">
           <div class="post-author">
@@ -115,7 +209,7 @@
 
             <div class="author-details">
               <div class="author-name">
-                {{ draft.username }}
+                {{ draft.user.username }}
                 <span
                   class="post-time"
                   data-created-at="{{ draft.created_at|date:'c' }}"
@@ -124,14 +218,13 @@
                 </span>
               </div>
               <div class="post-meta">
-                <span class="user-role"> {{ post.user_role }} </span>
+                <span class="user-role"> {{ draft.user.username }} </span>
 
                 <span class="separator">•</span>
                 <span class="publish-info">Published in {{ forum.name }}</span>
               </div>
             </div>
           </div>
-
           <!-- Post Options Menu -->
           <div class="post-options">
             <button class="options-btn" onclick="toggleMenu('{{ post.id }}')">
@@ -142,20 +235,13 @@
               <button class="menu-item">
                 <i class="fa-solid fa-pen"></i> Edit
               </button>
-              <button class="menu-item">
-                <i class="fa-solid fa-eye-slash"></i> Post
-              </button>
-              <button
-                class="menu-item delete-btn"
-                onclick="deletePost('{{ post.id }}')"
-              >
-                <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
+              <button class="menu-item post-btn" data-id="{{ draft.id }}">
+                <i class="fa fa-upload" aria-hidden="true"></i> Post
               </button>
               {% else %} {% endif %}
             </div>
           </div>
         </div>
-
         <div class="post-content">
           <h4>{{draft.title}}</h4>
           <p>{{ draft.content|urlize|truncatewords:60 }}</p>
@@ -227,7 +313,6 @@
 
   <aside class="sidebar">{% include "forums/forums.html"%}</aside>
 </div>
-
 
 <!-- IMAGE MODEL -->
 <div
@@ -374,4 +459,53 @@
     }
   });
 </script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const postButtons = document.querySelectorAll(".post-btn");
+
+    postButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const draftId = button.getAttribute("data-id");
+
+        // Send AJAX request to post the draft
+        fetch(`/forums/post_draft/${draftId}/`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCSRFToken(), // Use Django's CSRF protection
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({}), // Send data if necessary
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.status === "success") {
+              // Update UI without reload
+              const draftElement = document.getElementById(`post-${draftId}`);
+              if (draftElement) {
+                draftElement.remove(); // Remove draft from the list
+              }
+              alert(data.message); // Optionally show success message
+            } else {
+              alert(data.message); // Show error message
+            }
+          })
+          .catch((error) => console.error("Error:", error));
+      });
+    });
+  });
+
+  // Function to get CSRF token from the cookie (Django-specific)
+  function getCSRFToken() {
+    const name = "csrftoken";
+    const cookies = document.cookie.split(";");
+    for (let cookie of cookies) {
+      cookie = cookie.trim();
+      if (cookie.startsWith(name + "=")) {
+        return cookie.substring(name.length + 1);
+      }
+    }
+    return "";
+  }
+</script>
+
 {% endblock %}
