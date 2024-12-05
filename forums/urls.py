@@ -4,15 +4,12 @@ from . import views
 app_name = "forums"
 urlpatterns = [
     path("", views.ForumListView.as_view(), name="forum_list"),
+    path('delete/<int:forum_id>/', views.delete_forum, name='delete_forum'),
     path("<int:pk>/", views.ForumDetailView.as_view(), name="forum_detail"),
     path("create/", views.ForumCreateView.as_view(), name="forum_create"),
     path("<int:forum_id>/join/", views.JoinForumView.as_view(), name="join_forum"),
     path("<int:forum_id>/leave/", views.JoinForumView.as_view(), name="leave_forum"),
-    path(
-        "<int:forum_id>/manage_members/<int:user_id>/",
-        views.ManageMembersView.as_view(),
-        name="manage_members",
-    ),
+    path("manage-member/<int:forum_id>/<int:user_id>/", views.ManageMembersView.as_view(), name="manage_member"),
     path(
         "post/<int:post_id>/delete/", views.PostDeleteView.as_view(), name="post_delete"
     ),
@@ -53,5 +50,9 @@ urlpatterns = [
     path("forum/<int:forum_id>/drafts/", views.drafts_page, name="drafts_page"),
     path('flag_post/<int:post_id>/', views.flag_post, name='flag_post'),
     path("manage_forum/<int:forum_id>/", views.manage_forum, name='manage_forum'),
-     path('post_draft/<int:draft_id>/', views.post_draft, name='post_draft'),
+    path('post_draft/<int:draft_id>/', views.post_draft, name='post_draft'),
+    path('forum/<int:forum_id>/add_post_rule/', views.add_post_rule, name='add_post_rule'),
+    path('forum/<int:forum_id>/add_comment_rule/', views.add_comment_rule, name='add_comment_rule'),
+    path('delete_post_rule/<int:rule_id>/', views.delete_post_rule, name='delete_post_rule'),
+    path('delete_comment_rule/<int:rule_id>/', views.delete_comment_rule, name='delete_comment_rule'),
 ]
