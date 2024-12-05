@@ -2,6 +2,13 @@
     <div class="">
       <div class="sub-message">
         <div class="discussion-comments">
+          <p class="back-btn">
+            <a
+              href="{% url 'forums:forum_list' %}"
+              class="forum-card-overlay"
+              ><i class="fa-solid fa-arrow-left"></i
+            ></a>
+          </p>
           <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
           <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
           <p id="topics-count" class="topics-count">

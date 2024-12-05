@@ -163,6 +163,8 @@
     <!-- SORTING -->
     <div class="content-header">
       <h2 id="post-count-heading">{{ drafts_count }} Drafts</h2>
+    <span style="font-size: 16px; font-weight: bold;">Auto-deletion after 1 week</span>
+      
       <select class="sort-dropdown" id="sort-dropdown">
         <option value="">Default Order</option>
         <option value="newest">Newest First</option>
@@ -170,33 +172,6 @@
     </div>
     <div data-posts-container class="posts-container">
       {% if drafts %}
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 5px;
-        "
-      >
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            background-color: #f8d7da;
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            font-size: 16px;
-            color: #721c24;
-          "
-        >
-          <i
-            class="fa-solid fa-trash"
-            style="color: #c0111a; margin-right: 10px"
-          ></i>
-          <span>Auto-deletion after 1 week</span>
-        </div>
-      </div>
       {% for draft in drafts %}
 
       <article class="post" id="post-{{ draft.id }}">
@@ -221,7 +196,9 @@
                 <span class="user-role"> {{ draft.user.username }} </span>
 
                 <span class="separator">•</span>
-                <span class="publish-info">Published in {{ forum.name }}</span>
+                <span class="publish-info">
+                  Published in {% if forum.name|length > 15 %}{{ forum.name|slice:":30" }}...{% else %}{{ forum.name }}{% endif %}
+                </span>
               </div>
             </div>
           </div>
@@ -506,6 +483,15 @@
     }
     return "";
   }
+</script>
+
+<script>
+  setTimeout(function() {
+    const notification = document.getElementById('auto-deletion-notification');
+    if (notification) {
+      notification.style.display = 'none';
+    }
+  }, 5000); 
 </script>
 
 {% endblock %}
