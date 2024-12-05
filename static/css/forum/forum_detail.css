@@ -6,14 +6,14 @@
 }
 
 .header-section::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); 
-  z-index: -1; 
+  background: rgba(0, 0, 0, 0.5);
+  z-index: -1;
 }
 
 .header-section img {
@@ -219,7 +219,6 @@
   font-family: "Bebas Neue", serif;
   font-weight: 400;
 }
-
 
 .forum-header .lead::after {
   content: "";
@@ -700,7 +699,7 @@ body.modal-open {
   font-weight: bold;
   margin: 0;
 }
-.left-members h3 {
+.left-members h3 , .comment-rules h3, .post-rules h3 {
   font-size: 16px;
   color: #1b1f23;
   font-weight: bold;
@@ -724,21 +723,33 @@ body.modal-open {
   border-bottom: 1px solid #ebeef0;
   transition: background-color 0.1s;
 }
-.member:last-child {
+.general__managing__users{
+  border-bottom: 1px solid #ebeef0;
+  border:1px solid #ebeef0; ;
+}
+.manage__users{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background-color 0.1s;
+  padding: 8px 16px;
+}
+
+.member:last-child, .manage__users:last-child {
   border-bottom: none;
 }
 
-.member:hover {
+.member:hover, .general__managing__users:hover {
   background-color: #f6f8fa;
 }
 
-.member img {
+.member img, .manage__users img {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
 }
-.member .image-i {
+.member .image-i, .manage__users .image-i {
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -750,7 +761,7 @@ body.modal-open {
   justify-content: center;
 }
 
-.member-info {
+.member-info, .manage__users .member-info {
   flex: 1;
 }
 
@@ -780,7 +791,52 @@ body.modal-open {
 .admin .member-role .role-badge {
   background-color: #d73a49;
 }
+.member-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 4px;
+  padding-top: 4px;
+  margin-top: 8px;
+  border-top: 1px solid #ccc;
+}
 
+.action-btn {
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.action-btn[data-action="remove"] {
+  background-color: #dc3545;
+}
+
+.action-btn[data-action="remove"]:hover {
+  background-color: #b02a37;
+}
+
+.action-btn[data-action="make_admin"] {
+  background-color: #28a745;
+}
+
+.action-btn[data-action="make_admin"]:hover {
+  background-color: #1e7e34;
+}
+
+.action-btn[data-action="revoke_admin"] {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.action-btn[data-action="revoke_admin"]:hover {
+  background-color: #e0a800;
+}
 /* Responsive Design */
 @media (max-width: 768px) {
   .post-container {
@@ -934,48 +990,218 @@ body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: fixed; 
+  position: fixed;
   top: 50%;
-  left: 50%; 
-  transform: translate(-50%, -50%); 
+  left: 50%;
+  transform: translate(-50%, -50%);
   padding: 10px;
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
   border-radius: 5px;
   font-size: 14px;
-  display: none; 
+  display: none;
 }
 
-
 .no-posts-message {
-  text-align: center;  
+  text-align: center;
   margin: 20px 0;
   padding: 20px;
-  border: 1px solid #ddd; 
+  border: 1px solid #ddd;
   border-radius: 8px;
   background-color: #f9f9f9;
 }
 
 .create-post-link {
-  display: inline-flex; 
+  display: inline-flex;
   align-items: center;
   font-size: 18px;
-  color: #007bff;  
+  color: #007bff;
   text-decoration: none;
   margin-top: 10px;
   padding: 8px 16px;
-  border: 1px solid #007bff;  
+  border: 1px solid #007bff;
   border-radius: 4px;
-  background-color: #f1f9ff;  
+  background-color: #f1f9ff;
   transition: background-color 0.3s ease;
 }
 
 .create-post-link:hover {
-  background-color: #e0f7ff;  
-  color: #0056b3; 
+  background-color: #e0f7ff;
+  color: #0056b3;
 }
 
 .create-post-link i {
-  margin-right: 8px; 
+  margin-right: 8px;
   font-size: 20px;
+}
+
+/* General Styling */
+.section-title {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Container for flagged posts */
+.flagged-posts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Individual flagged post card */
+.flagged-post-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flagged-post-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Header styling */
+.flagged-post-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-pic {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ddd;
+}
+
+.flagged-by {
+  font-size: 1em;
+  color: #333;
+  margin: 0;
+}
+
+.flagged-date {
+  font-size: 0.875em;
+  color: #777;
+}
+
+/* Content styling */
+.flagged-post-content {
+  line-height: 1.6;
+}
+
+.flagged-post-content p {
+  margin: 8px 0;
+  font-size: 1em;
+  color: #444;
+}
+
+.post-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.post-link:hover {
+  text-decoration: underline;
+}
+.no-flagged-posts {
+  text-align: center;
+  font-size: 16px;
+  color: #777;
+  margin: 16px 0;
+}
+.flagged-post-card {
+  position: relative;
+  transition: transform 0.3s ease;
+}
+
+.flagged-post-card:hover {
+  transform: scale(1.01);
+}
+
+.click-to-view-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  display: none;
+  font-size: 14px;
+}
+
+.flagged-post-card:hover .click-to-view-message {
+  display: block;
+}
+
+.content-section {
+  padding: 5px 25px;
+}
+.content-section h4 {
+  margin-bottom: 15px;
+  font-family: "Parkinsans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+}
+.content-section.active {
+  display: block;
+}
+.sidebar .post-rules,
+.sidebar .comment-rules {
+  margin-bottom: 20px;
+}
+
+.sidebar h4 {
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 10px;
+  margin-left: 3px;
+  font-family: "Parkinsans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.sidebar .list-group-item {
+  background-color: #fff;
+  border: 1px solid #ddd;
+}
+
+.sidebar .alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+.sidebar .alert-info a {
+  font-weight: bold;
+  color: #004085;
+}
+.delete-rule-btn {
+  margin-left: 4px;
+  cursor: pointer;
+}
+.post__form #post-rule-form h3,
+.post__form #comment-rule-form h3 {
+  font-family: "Open Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+  font-variation-settings: "wdth" 100;
+  font-size: 20px;
+}
+.post__form #post-rule-char-count,
+.post__form #comment-rule-char-count {
+  display: flex;
+  float: left;
 }
