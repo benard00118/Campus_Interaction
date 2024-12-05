@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 def send_registration_email(registration):
     """Send registration confirmation or waitlist email to participant."""
     try:
+        # Debug logging
+        logger.info(f"Sending email for registration with status: {registration.status}")
+        logger.info(f"Event max participants: {registration.event.max_participants}")
+        logger.info(f"Current registered count: {registration.event.registrations.filter(status='registered').count()}")
+
         if not registration.name or not registration.email:
             raise ValueError("Registration must have both name and email")
 
@@ -23,11 +28,13 @@ def send_registration_email(registration):
             'waitlist_position': registration.waitlist_position if registration.status == 'waitlist' else None
         }
 
-        # Only send waitlist email if actually on waitlist
+        # Determine template based on registration status
         if registration.status == 'waitlist':
             template = 'events/emails/waitlist_confirmation.html'
+            subject = f"Waitlist Confirmation - {registration.event.title}"
         elif registration.status == 'registered':
             template = 'events/emails/registration_confirmation.html'
+            subject = f"Registration Confirmed - {registration.event.title}"
         else:
             logger.warning(f"Unexpected registration status: {registration.status}")
             return

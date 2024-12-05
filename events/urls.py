@@ -6,7 +6,7 @@ from rest_framework_nested import routers
 # urls.py
 from django.urls import path
 
-from .views import  register_event,cancel_registration
+from .views import  register_event,cancel_registration,event_status_view
 from . import api_views
 from .views import (
     EventListView,
@@ -64,4 +64,10 @@ urlpatterns = [
     # Corrected registration URLs
     path('event/<int:event_id>/register/', register_event, name='event_register'),
     path('event/<int:event_id>/cancel/', cancel_registration, name='event_cancel_registration'),
+    
+    
+    # Event status API endpoint
+    path('api/event/<int:event_id>/status/', 
+         event_status_view, 
+         name='event_status'),
 ]

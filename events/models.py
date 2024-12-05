@@ -62,6 +62,16 @@ class Event(models.Model):
         choices=STATUS_CHOICES, 
         default='published'
     )
+    allow_cancellation = models.BooleanField(
+        default=True, 
+        help_text="Allow participants to cancel their registration"
+    )
+    
+    cancellation_deadline = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        help_text="Deadline for registration cancellation"
+    )
     title = models.CharField(max_length=200, help_text="Enter the event title.")
     description = models.TextField(help_text="Event description")
     event_type = models.CharField(max_length=10, choices=EVENT_TYPE_CHOICES, default='physical')
@@ -131,35 +141,48 @@ class Event(models.Model):
             self.registrations.filter(status='registered').count() >= self.max_participants
         )
     
+    
+    def is_registration_open(self):
+        """
+        Check if registration is currently open
+        """
+        now = timezone.now()
+        return (
+            self.start_date <= now and 
+            (not self.end_date or now <= self.end_date)
+        )
+    def is_cancellation_allowed(self):
+        """
+        More comprehensive cancellation check
+        """
+        if not self.allow_cancellation:
+            return False
+        
+        # Additional checks
+        current_time = timezone.now()
+        
+        # Check if event has started
+        if self.start_date and current_time > self.start_date:
+            return False
+        
+        # Check cancellation deadline
+        if self.cancellation_deadline:
+            return current_time <= self.cancellation_deadline
+        
+        # Optional: Add more sophisticated logic
+        # For example, allow cancellation up to 24 hours before event
+        if self.start_date:
+            return current_time <= (self.start_date - timezone.timedelta(days=1))
+        
+        return True
     @property
     def spots_left(self):
-        """Calculate remaining spots."""
-        if self.max_participants is None:
-            return None
-        
+        # Adjust logic if needed
         registered_count = self.registrations.filter(status='registered').count()
         return max(0, self.max_participants - registered_count)
+
     @transaction.atomic
     def register_participant(self, user_profile, registration_data):
-        """
-        Centralized method to handle event registration
-        
-        Args:
-            user_profile (Profile): User attempting to register
-            registration_data (dict): Additional registration details
-        
-        Returns:
-            tuple: (registration_instance, status_message)
-        """
-        # Check for existing active registration
-        existing_registration = self.registrations.filter(
-            Q(participant=user_profile) & 
-            Q(status__in=['registered', 'waitlist'])
-        ).first()
-        
-        if existing_registration:
-            raise ValidationError(f"Already {existing_registration.get_status_display().lower()} for this event")
-        
         # Count current registrations
         registered_count = self.registrations.filter(status='registered').count()
         
@@ -313,6 +336,14 @@ class EventRegistration(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.event} ({self.get_status_display()})"
+    
+# Recommended additional model for logging
+class RegistrationCancellationLog(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    original_status = models.CharField(max_length=20)
+    cancelled_at = models.DateTimeField(auto_now_add=True)
+    
 class Comment(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='user_comments')  # Profile is used here
@@ -341,5 +372,6 @@ class CommentLike(models.Model):
 
     def __str__(self):
         return f"{self.user} likes {self.comment}"
+
 
 
