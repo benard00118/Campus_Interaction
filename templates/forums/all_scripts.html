@@ -75,6 +75,7 @@
       leaveBtn: document.getElementById("leave-btn"),
       memberCount: document.getElementById("member-count"),
       postsCount: document.getElementById("posts-count"),
+      commentCount: document.getElementById("commentCount"),
       topicsCount: document.getElementById("topics-count"),
       membersList: document.querySelector(".members-list"),
       currentUserCard: null,
@@ -505,6 +506,8 @@
               const post = document.getElementById("post-" + postId);
               if (post) {
                 const statusIcon = post.querySelector(".post-status-icon");
+                const hiddenLabel = post.querySelector(".hidden-label");
+
                 if (statusIcon) {
                   if (!newApprovedStatus) {
                     statusIcon.innerHTML =
@@ -513,6 +516,27 @@
                   } else {
                     statusIcon.innerHTML = '<i class="fa-solid fa-eye"></i>';
                     statusIcon.title = "Post is visible to the public";
+                  }
+                }
+
+                if (hiddenLabel) {
+                  if (!newApprovedStatus) {
+                    hiddenLabel.style.display = "inline";
+                  } else {
+                    hiddenLabel.style.display = "none";
+                  }
+                }
+
+                const commentCount = post.querySelector(
+                  ".comment-count-unpublished, .comment-count-published"
+                );
+                if (commentCount) {
+                  if (!newApprovedStatus) {
+                    commentCount.classList.add("comment-count-unpublished");
+                    commentCount.classList.remove("comment-count-published");
+                  } else {
+                    commentCount.classList.add("comment-count-published");
+                    commentCount.classList.remove("comment-count-unpublished");
                   }
                 }
               }
@@ -528,7 +552,6 @@
     });
   });
 </script>
-
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const postId = document.querySelector("article.post").id.split("-")[1];
@@ -673,6 +696,8 @@
 
     function updateCommentCount(increase = 1) {
       const commentCountElement = document.getElementById("posts-count");
+      const commentPostCount = document.getElementById("commentCount");
+
       if (commentCountElement) {
         const currentCount = parseInt(
           commentCountElement.textContent.split(" ")[0]
@@ -680,6 +705,11 @@
         commentCountElement.innerHTML = `${
           currentCount + increase
         } <span>Comments</span>`;
+      }
+
+      if (commentPostCount) {
+        const currentPostCount = parseInt(commentPostCount.textContent);
+        commentPostCount.textContent = currentPostCount + increase;
       }
     }
 
@@ -982,102 +1012,108 @@
   });
 </script>
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const flagPostModal = document.getElementById('flagPostModal');
-    const flagPostForm = document.getElementById('flagPostForm');
-    const flagErrorMessage = document.getElementById('flagErrorMessage');
+  document.addEventListener("DOMContentLoaded", () => {
+    const flagPostModal = document.getElementById("flagPostModal");
+    const flagPostForm = document.getElementById("flagPostForm");
+    const flagErrorMessage = document.getElementById("flagErrorMessage");
 
     window.openFlagModal = (postId) => {
-        flagPostForm.dataset.postId = postId;
-        flagPostModal.style.display = 'flex';
+      flagPostForm.dataset.postId = postId;
+      flagPostModal.style.display = "flex";
     };
 
     window.closeFlagModal = () => {
-        flagPostModal.style.display = 'none';
-        flagPostForm.reset();
-        flagErrorMessage.textContent = '';
+      flagPostModal.style.display = "none";
+      flagPostForm.reset();
+      flagErrorMessage.textContent = "";
     };
 
     function showNotification(message) {
-        let notification = document.createElement('div');
-        notification.textContent = message;
-        notification.style.position = 'fixed';
-        notification.style.bottom = '10px';
-        notification.style.left = '50%';
-        notification.style.transform = 'translateX(-50%)';
-        notification.style.backgroundColor = '#4caf50';
-        notification.style.color = 'white';
-        notification.style.padding = '10px';
-        notification.style.borderRadius = '5px';
-        notification.style.zIndex = '1000';
-        notification.style.display = 'block';
-        notification.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.2)';
+      let notification = document.createElement("div");
+      notification.textContent = message;
+      notification.style.position = "fixed";
+      notification.style.bottom = "10px";
+      notification.style.left = "50%";
+      notification.style.transform = "translateX(-50%)";
+      notification.style.backgroundColor = "#4caf50";
+      notification.style.color = "white";
+      notification.style.padding = "10px";
+      notification.style.borderRadius = "5px";
+      notification.style.zIndex = "1000";
+      notification.style.display = "block";
+      notification.style.boxShadow = "0 4px 6px rgba(0, 0, 0, 0.2)";
 
-        document.body.appendChild(notification);
+      document.body.appendChild(notification);
 
-        setTimeout(() => {
-            notification.style.opacity = '0';
-            setTimeout(() => notification.remove(), 500);
-        }, 3000);
+      setTimeout(() => {
+        notification.style.opacity = "0";
+        setTimeout(() => notification.remove(), 500);
+      }, 3000);
     }
 
-    flagPostForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    flagPostForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-        const postId = flagPostForm.dataset.postId;
-        const category = flagPostForm.querySelector('.flag-category-select').value;
-        const description = flagPostForm.querySelector('.flag-description-textarea').value;
+      const postId = flagPostForm.dataset.postId;
+      const category = flagPostForm.querySelector(
+        ".flag-category-select"
+      ).value;
+      const description = flagPostForm.querySelector(
+        ".flag-description-textarea"
+      ).value;
 
-        if (!category) {
-            flagErrorMessage.textContent = 'Please select a flag category.';
-            return;
+      if (!category) {
+        flagErrorMessage.textContent = "Please select a flag category.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`/forums/flag_post/${postId}/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+          body: `category=${encodeURIComponent(
+            category
+          )}&description=${encodeURIComponent(description)}`,
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          showNotification(result.message || "Post flagged successfully");
+          closeFlagModal();
+        } else if (result.status === "error") {
+          if (result.errors) {
+            // Display detailed error messages for specific fields
+            const errorMessages = Object.values(result.errors).join(", ");
+            flagErrorMessage.textContent = errorMessages;
+          } else {
+            // Fallback error message
+            flagErrorMessage.textContent =
+              result.message || "Failed to flag post";
+          }
         }
-
-        try {
-            const response = await fetch(`/forums/flag_post/${postId}/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: `category=${encodeURIComponent(category)}&description=${encodeURIComponent(description)}`
-            });
-
-            const result = await response.json();
-
-            if (result.status === 'success') {
-                showNotification(result.message || 'Post flagged successfully');
-                closeFlagModal();
-            } else if (result.status === 'error') {
-                if (result.errors) {
-                    // Display detailed error messages for specific fields
-                    const errorMessages = Object.values(result.errors).join(', ');
-                    flagErrorMessage.textContent = errorMessages;
-                } else {
-                    // Fallback error message
-                    flagErrorMessage.textContent = result.message || 'Failed to flag post';
-                }
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            flagErrorMessage.textContent = 'An unexpected error occurred';
-        }
+      } catch (error) {
+        console.error("Error:", error);
+        flagErrorMessage.textContent = "An unexpected error occurred";
+      }
     });
 
     function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === name + "=") {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
         }
-        return cookieValue;
+      }
+      return cookieValue;
     }
-});
-
+  });
 </script>

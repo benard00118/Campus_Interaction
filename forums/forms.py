@@ -1,5 +1,5 @@
 from django import forms
-from .models import Forum, Post, Comment
+from .models import Forum, Post, Comment, CommentRule, PostRule
 from django.core.exceptions import ValidationError
 import os
 
@@ -31,6 +31,40 @@ class ForumForm(forms.ModelForm):
             ),
             "display_picture": forms.ClearableFileInput(
                 attrs={"class": "form-control", "accept": "image/*"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["display_picture"].required = False
+
+class ForumEditForm(forms.ModelForm):
+    class Meta:
+        model = Forum
+        fields = ["name", "description", "display_picture"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "topic__title",
+                    "id": "topic__title",
+                    "placeholder": "Enter forum name *",
+                    "maxlength": "50",
+                    "required": True,
+                }
+            ),
+            "description": forms.Textarea(
+                attrs={
+                    "class": "topic__content",
+                    "id": "description__input",
+                    "rows": 6,
+                    "cols": 40,
+                    "placeholder": "Enter a description *",
+                    "maxlength": "250",
+                    "required": True,
+                }
+            ),
+            "display_picture": forms.ClearableFileInput(
+                attrs={"class": "form-control", "accept": "image/*,video/*"}
             ),
         }
 
@@ -154,3 +188,34 @@ class PostFlagForm(forms.Form):
             raise forms.ValidationError('Please provide a description for your flag.')
 
         return cleaned_data
+    
+class PostRuleForm(forms.ModelForm):
+    class Meta:
+        model = PostRule
+        fields = ['rule_text']
+        widgets = {
+            'rule_text': forms.Textarea(
+                attrs={
+                    'rows': 5, 
+                    'cols': 40, 
+                    'class': 'topic__content',
+                    'maxlength': '100'
+                }
+            ),
+        }
+
+
+class CommentRuleForm(forms.ModelForm):
+    class Meta:
+        model = CommentRule
+        fields = ['rule_text']
+        widgets = {
+            'rule_text': forms.Textarea(
+                attrs={
+                    'rows': 5, 
+                    'cols': 40, 
+                    'class': 'topic__content',
+                    'maxlength': '100'
+                }
+            ),
+        }

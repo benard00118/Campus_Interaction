@@ -89,7 +89,110 @@
 
 <!-- POSTS AND MEMBERS LIST -->
 <div class="post-container">
-  {% include "forums/members.html"%}
+  <div class="members">
+    <div class="the__title">
+      <h2 class="forum-title" data-forum-id="{{ forum.id }}">
+        {{ forum.name|truncatechars:30 }}
+        <span>
+          <i class="fa fa-link" aria-hidden="true"></i>
+        </span>
+      </h2>
+    </div>
+    <div class="sidebar-header">
+      <h2>
+        FORUM MEMBERS
+        <!-- <span>{{ online_members_count }} / {{ total_members_count }} active</span> -->
+      </h2>
+    </div>
+    <div class="members-list">
+      {% for member_info in members_with_roles %}
+      <div
+        class="member {% if member_info.is_admin %}admin{% endif %}"
+        data-user-id="{{ member_info.user.id }}"
+      >
+        <img
+          src="{{ member_info.user.profile.profile_pic.url }}"
+          alt="{{ member_info.user.username }}"
+        />
+        <div class="member-info">
+          <div class="member-name">
+            <a href="{% url 'chat_room' username=member_info.user.username %}">
+              {{ member_info.user.username }}
+            </a>
+          </div>          
+          <div class="member-likes">{{ member_info.post_likes }} likes</div>
+        </div>
+        <div class="member-role">
+          {% if member_info.role == "Main Admin" %}
+          <span class="role-badge">Main Admin</span>
+          {% elif member_info.is_admin %}
+          <span class="role-badge" style="background-color: #28a745"
+            >Forum Admin</span
+          >
+          {% else %}
+          <span class="role-badge">Member</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %} {% if user.is_authenticated and membership %} 
+      {% if left_members %}
+      <div class="left-members">
+        <h3>Users Who Left the Forum</h3>
+        {% for left_member in left_members %}
+        <div class="member left-member">
+          <img
+            src="{{ left_member.user.profile.profile_pic.url }}"
+            alt="{{ left_member.user.username }}"
+          />
+          <div class="member-info">
+            <div class="member-name">{{ left_member.user.username }}</div>
+            <div class="member-likes">
+              Left on {{ left_member.left_at|date:"b d, Y \a\t g:i A"|capfirst}}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% endif %} {% endif %}
+      {% if comment_rules %}
+      <div class="comment-rules">
+        <h3>Comment Rules</h3>
+        <ul id="comment-rules-list" class="list-group">
+          {% for rule in comment_rules %}
+          <li class="list-group-item rule-item" data-rule-id="{{ rule.id }}">
+            <div class="rule-content">
+              <strong>Rule:</strong> {{ rule.rule_text }}
+              <br />
+              <small style="color: #6c757d"
+                >Created at: {{ rule.created_at|date:"H:i d/m/Y" }}</small
+              >
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      {% if post_rules %}
+      <div class="post-rules">
+        <h3>Post Rules</h3>
+        <ul id="post-rules-list" class="list-group">
+          {% for rule in post_rules %}
+          <li class="list-group-item rule-item" data-rule-id="{{ rule.id }}">
+            <div class="rule-content">
+              <strong>Rule:</strong> {{ rule.rule_text }}
+              <br />
+              <small style="color: #6c757d"
+                >Created at: {{ rule.created_at|date:"H:i d/m/Y" }}</small
+              >
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
   <div class="main-content">
     <!-- SORTING -->
     <div class="content-header">
@@ -102,198 +205,131 @@
     </div>
     <!-- POSTS/TOPICS -->
     <div data-posts-container class="posts-container">
+      {% if visible_posts_count > 0 %}
       {% for post in posts %}
-      {% if post.approved or post.user == request.user %}
-      <article class="post" id="post-{{ post.id }}">
-        <a
-        href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}"
-          class="post-link"
-        ></a>
-        <div class="post-edge-link"></div>
-        <div class="author__options">
-          <div class="post-author">
-            <img
-              src="{{ post.user.profile.profile_pic.url }}"
-              alt="{{ post.user.username }} Profile"
-            />
+        {% if post.approved or post.user == request.user %}
+          <article class="post" id="post-{{ post.id }}">
+            <a href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}" class="post-link"></a>
+            <div class="post-edge-link"></div>
+            <div class="author__options">
+              <div class="post-author">
+                <img src="{{ post.user.profile.profile_pic.url }}" alt="{{ post.user.username }} Profile" />
+                <div class="author-details">
+                  <div class="author-name">
+                    {{ post.user.username }}
+                    <span class="post-time" data-created-at="{{ post.created_at|date:'c' }}">
+                      {{ post.created_at|short_timesince }}
+                    </span>
 
-            <div class="author-details">
-              <div class="author-name">
-                {{ post.user.username }}
-                <span
-                  class="post-time"
-                  data-created-at="{{ post.created_at|date:'c' }}"
-                >
-                  {{ post.created_at|short_timesince }}
+                    <span class="hidden-label" style="color: #c0111a; font-weight: 700; {% if post.approved %} display: none; {% endif %}">
+                      Hidden
+                    </span>
+                  </div>
+                  <div class="post-meta">
+                    <span class="user-role">{{ post.user_role }}</span>
+                    <span class="separator">•</span>
+                    <span class="publish-info">
+                      Published in {% if forum.name|length > 15 %}{{ forum.name|slice:":30" }}...{% else %}{{ forum.name }}{% endif %}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <!-- Post Options Menu -->
+              <div class="post-options">
+                <button class="options-btn" onclick="toggleMenu('{{ post.id }}')">
+                  <i class="fa-solid fa-ellipsis"></i>
+                </button>
+                <div class="options-menu" id="menu-{{ post.id }}">
+                  {% if membership %}
+                    {% if user == post.user %}
+                      <button class="menu-item"><i class="fa-solid fa-pen"></i> Edit</button>
+                      <button class="menu-item toggle-visibility-btn" data-post-id="{{ post.id }}" data-approved="{{ post.approved }}">
+                        {% if post.approved %}
+                          <i class="fa-solid fa-eye-slash"></i> Hide
+                        {% else %}
+                          <i class="fa-solid fa-eye"></i> Show
+                        {% endif %}
+                      </button>
+                      <button class="menu-item delete-btn" onclick="deletePost('{{ post.id }}')">
+                        <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
+                      </button>
+                    {% else %}
+                      <button class="menu-item" onclick="openFlagModal('{{ post.id }}')">
+                        <i class="fa-solid fa-flag"></i> Flag
+                      </button>
+                    {% endif %}
+                    {% if post.imag or post.video %}
+                      <button class="menu-item" id="download_image_video">
+                        <i class="fa fa-download" aria-hidden="true"></i> Save
+                      </button>
+                    {% endif %}
+                  {% else %}
+                    <p class="menu-item" style="color: red">Must subscribe to see menu</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="post-content">
+              <h4>{{ post.title }}</h4>
+              <p>{{ post.content|urlize|linebreaks|truncatewords:60 }}</p>
+    
+              {% if post.image %}
+                <div class="media-container">
+                  <img src="{{ post.image.url }}" alt="Post image" />
+                </div>
+              {% elif post.video %}
+                <div class="media-container videos">
+                  <video controls crossorigin playsinline id="player-{{ post.id }}" class="player">
+                    <source src="{{ post.video.url }}" type="video/mp4" />
+                  </video>
+                </div>
+              {% endif %}
+            </div>
+            <div class="post-stats">
+              <span class="stat-item likes" onclick="toggleLike('{{ post.id }}')">
+                <i class="fa-solid fa-thumbs-up {% if post.liked %}liked{% endif %}"></i>
+                <span>{{ post.likes.count }}</span>
+              </span>
+              <a href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}" style="color: #57606a">
+                <span class="stat-item">
+                  <i class="fa-regular fa-eye"></i>
+                  <span>{{ post.views.count }}</span>
                 </span>
-              </div>
-              <div class="post-meta">
-                <span class="user-role"> {{ post.user_role }} </span>
-
-                <span class="separator">•</span>
-                <span class="publish-info">Published in {% if forum.name|length > 15 %}
-                  {{ forum.name|slice:":30" }}...
-              {% else %}
-                  {{ forum.name }}
-              {% endif %}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Post Options Menu -->
-          <div class="post-options">
-            
-            <button class="options-btn" onclick="toggleMenu('{{ post.id }}')">
-              <i class="fa-solid fa-ellipsis"></i>
-            </button>
-            
-            
-            <div class="options-menu" id="menu-{{ post.id }}">
-              {% if membership %}
-              {% if user == post.user %}
-              <button
-                class="menu-item"
-              ><i class="fa-solid fa-pen"></i> Edit
-            </button>
-            <button
-            class="menu-item toggle-visibility-btn"
-            data-post-id="{{ post.id }}"
-            data-approved="{{ post.approved }}">
-            {% if post.approved %}
-                <i class="fa-solid fa-eye-slash"></i> Hide
-            {% else %}
-              <i class="fa-solid fa-eye"></i> Show
-            {% endif %}
-             </button>
-              <button
-                class="menu-item delete-btn"
-                onclick="deletePost('{{ post.id }}')"
-              >
-                <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
-              </button>
-              {% else %}
+              </a>
+              <style>  
+                .comment-count-unpublished {
+                  color: black;
+                  background-color: black;
+                  padding: 0 0.5em;
+                  border-radius: 5px;
+                }
+              </style>
               
-              <button class="menu-item" onclick="openFlagModal('{{ post.id }}')">
-                <i class="fa-solid fa-flag"></i> Flag
-              </button>
-              {% endif %}
-              {% if post.imag or post.video %}
-              <button class="menu-item" id="download_image_video">
-                  <i class="fa fa-download" aria-hidden="true"></i> Save
-              </button>
-              {% endif %}
-              {% else %}
-              <p class="menu-item" style="color: red">Must subscribe to see menu</p>
-              {% endif %}
+              <a href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}" style="color: #57606a">
+                <span class="stat-item">
+                  <i class="fa-solid fa-comment"></i>
+                  <span class="{% if not post.approved %}comment-count-unpublished{% else %}comment-count-published{% endif %}">
+                      {{ post.comments.count }}
+                  </span>
+                </span>              
+              </a>
+              <span class="stat-item" onclick="sharePost('{{ post.id }}')">
+                <i class="fa-solid fa-share"></i>
+                <span>share</span>
+              </span>
             </div>
-            
-
-          </div>
-        </div>
-
-        <div class="post-content">
-          <h4>{{post.title}}</h4>
-          <p>{{ post.content|urlize|linebreaks|truncatewords:60 }}</p>
-
-          {% if post.image %}
-          <div class="media-container">
-            <img src="{{ post.image.url }}" alt="Post image" />
-          </div>
-          <style>
-            .media-container.videos {
-              max-width: 100%;
-              width: 100%;
-              height: 400px;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-            }
-
-            .plyr {
-              width: 100%;
-              height: 100%;
-            }
-            video {
-              width: 100%;
-              height: 230%;
-              object-fit: contain;
-            }
-
-            @media (max-width: 768px) {
-              .media-container.videos {
-                height: 200px;
-              }
-            }
-
-            @media (max-width: 480px) {
-              .media-container.videos {
-                height: 200px;
-              }
-            }
-            .player {
-              opacity: 0.7;
-              transition: opacity 0.3s ease;
-            }
-            .player.video-loaded {
-              opacity: 1;
-            }
-          </style>
-          {% elif post.video %}
-          <div class="media-container videos">
-            <video
-              controls
-              crossorigin
-              playsinline
-              id="player-{{ post.id }}"
-              class="player"
-            >
-              <source src="{{ post.video.url }}" type="video/mp4" />
-            </video>
-          </div>
-          {% endif %}
-          
-
-        </div>
-        <div class="post-stats">
-          <span class="stat-item likes" onclick="toggleLike('{{ post.id }}')">
-            <i
-              class="fa-solid fa-thumbs-up {% if post.liked %}liked{% endif %}"
-            ></i>
-            <span>{{ post.likes.count }}</span>
-          </span>
-          <a
-          href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}"
-            style="color: #57606a"
-          >
-            <span class="stat-item">
-              <i class="fa-regular fa-eye"></i>
-              <span>{{ post.views.count }}</span>
-            </span>
-          </a>
-          <a
-          href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}"
-            style="color: #57606a"
-          >
-            <span class="stat-item">
-              <i class="fa-solid fa-comment"></i>
-              <span>{{ post.comments.count }}</span>
-            </span>
-          </a>
-          <span class="stat-item" onclick="sharePost('{{ post.id }}')">
-            <i class="fa-solid fa-share"></i>
-            <span>share</span>
-          </span>
-        </div>
-      </article>
-      {% else %}
+          </article>
+        {% endif %}
+      {% endfor %}
+    {% else %}
       <div class="no-posts-message">
         <p>No posts available. Be the first to create one!</p>
         <a href="{% url 'forums:create_post' forum_id=forum.id %}" class="create-post-link">
           <i class="fa-solid fa-plus-circle"></i> Create a Post
         </a>
       </div>
-      {% endif %}
-    {% endfor %}
+    {% endif %}
+    
   
     </div>
   </div>

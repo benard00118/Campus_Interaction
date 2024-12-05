@@ -25,7 +25,11 @@
           alt="{{ member_info.user.username }}"
         />
         <div class="member-info">
-          <div class="member-name">{{ member_info.user.username }}</div>
+          <div class="member-name">
+            <a href="{% url 'chat_room' username=member_info.user.username %}">
+              {{ member_info.user.username }}
+            </a>
+          </div>          
           <div class="member-likes">{{ member_info.post_likes }} likes</div>
         </div>
         <div class="member-role">

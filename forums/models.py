@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.core.validators import MaxLengthValidator
 
 
 class Forum(models.Model):
@@ -45,6 +46,28 @@ class Forum(models.Model):
     def get_absolute_url(self):
         return reverse("forums:forum_detail", kwargs={"pk": self.pk})
 
+class PostRule(models.Model):
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='post_rules')
+    rule_text = models.TextField(
+        validators=[MaxLengthValidator(100)] 
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Post Rule for {self.forum.name}"
+
+
+class CommentRule(models.Model):
+    forum = models.ForeignKey(Forum, on_delete=models.CASCADE, related_name='comment_rules')
+    rule_text = models.TextField(
+        validators=[MaxLengthValidator(100)]
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Comment Rule for {self.forum.name}"
 
 class ForumMembership(models.Model):
     ROLE_CHOICES = [
@@ -57,7 +80,7 @@ class ForumMembership(models.Model):
     joined_at = models.DateTimeField(auto_now_add=True)
     role = models.CharField(
         max_length=10, choices=ROLE_CHOICES, default="member"
-    )  # New field
+    ) 
 
     class Meta:
         unique_together = ("user", "forum")
@@ -128,6 +151,7 @@ class Draft(models.Model):
     video = models.FileField(upload_to="draft_videos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_posted = models.BooleanField(default=False)  
 
 
 class Like(models.Model):
