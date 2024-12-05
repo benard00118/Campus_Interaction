@@ -30,7 +30,7 @@
           ></a>
         </p>
         <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
-        <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
+        <p id="posts-count">{{ comment_count }}  <span>Comments</span></p>
         <p id="topics-count" class="topics-count">
           {{ post_count }} <span>Topics</span>
         </p>
@@ -224,17 +224,19 @@
       <p class="modal-description">
           You must subscribe to this forum to create a post or interact with it. Click the button below to subscribe and unlock full access.
       </p>
+      <a href="{% url 'forums:forum_detail' forum.id %}">
       <button 
-          class="subscribe-button" 
-          onclick="window.location.href='http://0.0.0.0:5000/forums/{{forum.id}}/'">
+          class="subscribe-button">
           Subscribe Now
       </button>
+    </a>
       <br>
+      <a href="{% url 'forums:forum_list' %}">
       <button 
-          class="modal-cancel-button" 
-          onclick="window.location.href='/'">
+          class="modal-cancel-button">
           Cancel
       </button>
+    </a>
   </div>
 </div>
 {% endif %}

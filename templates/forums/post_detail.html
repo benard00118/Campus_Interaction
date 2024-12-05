@@ -100,6 +100,7 @@
             ></a>
           </p>
           <p id="member-count">{{ forum.member_count }} <span>Members</span></p>
+          
           <p id="posts-count">{{ comment_count }} <span>Comments</span></p>
           <p id="topics-count" class="topics-count">
             {{ post_count }} <span>Topics</span>
@@ -178,8 +179,7 @@
                   </span>
                 </div>
                 <div class="post-meta">
-                  <span class="user-role"> {{ post.user_role }} </span>
-  
+                  <span class="user-role"> {{ post.user_role }} </span>  
                   <span class="separator">•</span>
                   <span class="publish-info">Published in {{ forum.name }}</span>
                 </div>
@@ -195,33 +195,41 @@
               <div class="options-menu" id="menu-{{ post.id }}">
                 {% if membership %}
                 {% if user == post.user %}
-                <button
-                  class="menu-item"
-                ><i class="fa-solid fa-pen"></i> Edit
-              </button>
-              <button
-            class="menu-item toggle-visibility-btn"
-            data-post-id="{{ post.id }}"
-            data-approved="{{ post.approved }}">
-            {% if post.approved %}
-                <i class="fa-solid fa-eye-slash"></i> Hide
-            {% else %}
-              <i class="fa-solid fa-eye"></i> Show
-            {% endif %}
-             </button>
-                <button
-                  class="menu-item delete-btn"
-                  onclick="deletePost('{{ post.id }}')"
-                >
+                <button class="menu-item"><i class="fa-solid fa-pen"></i> Edit</button>
+
+                <button class="menu-item toggle-visibility-btn" data-post-id="{{ post.id }}" data-approved="{{ post.approved }}">
+                  {% if post.approved %}
+                    <i class="fa-solid fa-eye-slash"></i> Hide
+                  {% else %}
+                    <i class="fa-solid fa-eye"></i> Show
+                  {% endif %}
+                </button>
+
+                <button class="menu-item delete-btn" onclick="deletePost('{{ post.id }}')">
                   <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
                 </button>
+
+                {% elif member_info.role == "Main Admin" %}
+                {% if post.flag_count > 0 %}
+
+                  <button class="menu-item toggle-visibility-btn" data-post-id="{{ post.id }}" data-approved="{{ post.approved }}">
+                    {% if post.approved %}
+                      <i class="fa-solid fa-eye-slash"></i> Hide
+                    {% else %}
+                      <i class="fa-solid fa-eye"></i> Show
+                    {% endif %}
+                  </button>
+                  
+                  <button class="menu-item delete-btn" onclick="deletePost('{{ post.id }}')">
+                    <i class="fa-solid fa-trash" style="color: #c0111a"></i> Delete
+                  </button>
+                {% endif %}
                 {% else %}
-                
                 <button class="menu-item" onclick="openFlagModal('{{ post.id }}')">
                   <i class="fa-solid fa-flag"></i> Flag
                 </button>
                 {% endif %}
-              
+
                 {% if post.imag or post.video %}
                 <button class="menu-item" id="download_image_video">
                     <i class="fa fa-download" aria-hidden="true"></i> Save
@@ -313,7 +321,7 @@
 
               <span class="stat-item">
                 <i class="fa-solid fa-comment"></i>
-                <span>{{ comment_count }} </span>
+                <span id="commentCount">{{ comment_count }} </span>
               </span>
 
             <span class="stat-item" onclick="sharePost('{{ post.id }}')">
