@@ -1,156 +1,109 @@
+@login_required
+def cancel_registration(request, event_id):
+    """
+    Comprehensive event registration cancellation handler
+    """
+    # Logging for debugging
+    logger.info(f"Cancellation attempt: User {request.user.id}, Event {event_id}")
 
-
-
-# @login_required
-# def register_event(request, event_id):
-#     """
-#     Event registration with advanced retry mechanism to handle database locks
+    if request.method != 'POST':
+        logger.warning(f"Invalid method for cancellation: {request.method}")
+        return JsonResponse({
+            'success': False, 
+            'error': 'Method not allowed. Use POST.',
+            'status_code': 'METHOD_NOT_ALLOWED'
+        }, status=405)
     
-#     Args:
-#         request: HTTP request
-#         event_id: ID of the event to register for
-    
-#     Returns:
-#         JsonResponse with registration status and details
-#     """
-#     if request.method != 'POST':
-#         return JsonResponse({
-#             'success': False, 
-#             'error': 'Method not allowed. Use POST.',
-#             'status_code': 'METHOD_NOT_ALLOWED'
-#         }, status=405)
-    
-#     # Configuration for retry mechanism
-#     MAX_RETRIES = 3
-#     BASE_WAIT_TIME = 0.5  # Base wait time in seconds
-    
-#     # Prepare logging context
-#     logger.info(f"Registration attempt for event {event_id} by user {request.user.id}")
-    
-#     for attempt in range(MAX_RETRIES):
-#         try:
-#             # Exponential backoff for retry attempts
-#             wait_time = BASE_WAIT_TIME * (2 ** attempt)
-            
-#             with transaction.atomic():
-#                 try:
-#                     # Use select_for_update with timeout to prevent long-running locks
-#                     event = Event.objects.select_for_update(
-#                         of=('self',),  # Lock only this specific event
-#                         skip_locked=True  # Skip if locked by another transaction
-#                     ).get(id=event_id)
-#                 except DatabaseError as db_err:
-#                     # Log the specific database error
-#                     logger.warning(f"Database lock attempt {attempt + 1} failed: {db_err}")
-                    
-#                     # If not the last attempt, wait and retry
-#                     if attempt < MAX_RETRIES - 1:
-#                         time.sleep(wait_time)
-#                         continue
-#                     else:
-#                         return JsonResponse({
-#                             'success': False,
-#                             'error': 'Event registration temporarily unavailable. Please try again later.',
-#                             'status_code': 'REGISTRATION_LOCKED',
-#                             'retry_after': wait_time
-#                         }, status=409)
-                
-#                 # Retrieve user profile
-#                 try:
-#                     user_profile = request.user.profile
-#                 except Profile.DoesNotExist:
-#                     return JsonResponse({
-#                         'success': False,
-#                         'error': 'User profile not found',
-#                         'status_code': 'PROFILE_NOT_FOUND'
-#                     }, status=400)
-                
-#                 # Check registration eligibility
-#                 can_register, status_message = event.can_register(user_profile)
-#                 if not can_register:
-#                     return JsonResponse({
-#                         'success': False,
-#                         'error': status_message,
-#                         'status_code': 'REGISTRATION_NOT_ALLOWED'
-#                     }, status=400)
-                
-#                 # Prepare registration data
-#                 registration_data = {
-#                     'name': request.POST.get('name'),
-#                     'email': request.POST.get('email'),
-#                 }
-                
-#                 # Validate registration form
-#                 form = EventRegistrationForm(
-#                     request.POST, 
-#                     event=event, 
-#                     user=request.user
-#                 )
-                
-#                 if not form.is_valid():
-#                     return JsonResponse({
-#                         'success': False,
-#                         'errors': form.errors,
-#                         'status_code': 'FORM_VALIDATION_ERROR'
-#                     }, status=400)
-                
-#                 # Attempt registration
-#                 try:
-#                     registration, status = event.register_for_event(
-#                         user_profile, 
-#                         registration_data
-#                     )
-                    
-#                     # Prepare successful response
-#                     response_data = {
-#                         'success': True,
-#                         'status': status,
-#                         'message': (
-#                             'Successfully registered' if status == 'registered' 
-#                             else 'Added to waitlist'
-#                         ),
-#                         'waitlist_position': registration.waitlist_position if status == 'waitlist' else None,
-#                         'spots_left': event.spots_left,
-#                         'registration_id': registration.id,
-#                         'retry_attempts': attempt
-#                     }
-                    
-#                     return JsonResponse(response_data)
-                
-#                 except ValidationError as ve:
-#                     return JsonResponse({
-#                         'success': False,
-#                         'error': str(ve),
-#                         'status_code': 'VALIDATION_ERROR'
-#                     }, status=400)
-                
-#                 except Exception as registration_error:
-#                     logger.error(f"Registration failed: {registration_error}", exc_info=True)
-#                     return JsonResponse({
-#                         'success': False,
-#                         'error': 'Unexpected registration error',
-#                         'status_code': 'UNEXPECTED_REGISTRATION_ERROR'
-#                     }, status=500)
+    try:
+        # Retrieve the event first to validate its existence
+        event = get_object_or_404(Event, id=event_id)
         
-#         except Event.DoesNotExist:
-#             logger.warning(f"Attempted registration for non-existent event {event_id}")
-#             return JsonResponse({
-#                 'success': False,
-#                 'error': 'Event not found',
-#                 'status_code': 'EVENT_NOT_FOUND'
-#             }, status=404)
+        # Comprehensive cancellation eligibility check
+        can_cancel, reason = event.is_cancellation_allowed()
+        if not can_cancel:
+            logger.info(f"Cancellation not allowed: {reason}")
+            return JsonResponse({
+                'success': False,
+                'error': reason,
+                'status_code': 'CANCELLATION_NOT_ALLOWED'
+            }, status=400)
         
-#         except Exception as unexpected_error:
-#             # Catch-all for any unexpected errors
-#             logger.error(f"Unexpected error during registration: {unexpected_error}", exc_info=True)
-            
-#             # If not the last attempt, wait and retry
-#             if attempt < MAX_RETRIES - 1:
-#                 time.sleep(wait_time)
-#                 continue
-#             else:
-#                 return JsonResponse({
-#                     'success': False,
-#                     'error': 'An unexpected error occurred',
-#                     'status_code': 'SYSTEM_ERROR'
-#                 }, status=500)
+        # Find the user's registration
+        try:
+            registration = EventRegistration.objects.get(
+                event=event, 
+                participant=request.user.profile,
+                status__in=['registered', 'waitlist']
+            )
+        except EventRegistration.DoesNotExist:
+            logger.warning(f"No active registration found for user {request.user.id}, event {event_id}")
+            return JsonResponse({
+                'success': False,
+                'error': 'No active registration found',
+                'status_code': 'NO_REGISTRATION'
+            }, status=404)
+        
+        # Detailed logging
+        logger.info(f"Cancellation details: Registration {registration.id}, Status {registration.status}")
+        
+        # Log cancellation event
+        RegistrationCancellationLog.objects.create(
+            event=event,
+            user=request.user,
+            original_status=registration.status,
+            cancelled_at=timezone.now()
+        )
+        
+        # Cancel the registration
+        registration.cancel_registration()
+        
+        # Send cancellation confirmation email
+        try:
+            send_cancellation_confirmation_email(request.user.profile, event)
+        except Exception as email_error:
+            logger.error(f"Email sending failed during cancellation: {email_error}")
+            # Note: We don't return an error here, as the cancellation itself was successful
+        
+        # Prepare comprehensive response
+        response_data = {
+            'success': True,
+            'message': 'Registration cancelled successfully',
+            'previous_status': registration.status,
+            'spots_left': event.spots_left,
+            'max_participants': event.max_participants,
+            'waitlist_promoted': True  # Assuming promotion might have occurred
+        }
+        
+        return JsonResponse(response_data)
+    
+    except Exception as unexpected_error:
+        logger.error(f"Unexpected cancellation error: {unexpected_error}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected system error occurred',
+            'status_code': 'SYSTEM_ERROR',
+            'details': str(unexpected_error)
+        }, status=500)
+
+def send_cancellation_confirmation_email(user, event):
+    """
+    Comprehensive cancellation email
+    """
+    try:
+        email_context = {
+            'event_title': event.title,
+            'event_date': event.start_date,
+            'cancellation_time': timezone.now(),
+            'spots_left_before': event.spots_left
+        }
+        
+        # Use a template-based email for richer content
+        send_mail(
+            subject=f'Event Registration Cancelled: {event.title}',
+            message=render_to_string('emails/cancellation_confirmation.html', email_context),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=render_to_string('events/emails/cancellation_confirmation_html.html', email_context)
+        )
+    except Exception as e:
+        logger.error(f"Cancellation email failed: {e}")
