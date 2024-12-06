@@ -86,8 +86,8 @@ Use this list to track progress. Mark tasks as completed by adding a ✅ at the 
 
 ### Community Features
 
-- [ ] **Forums & Communities** - Frontend (Victor)
-- [ ] **Forums & Communities** - Backend (Fidel)
+- [✅] **Forums & Communities** - Frontend (Victor)
+- [✅] **Forums & Communities** - Backend (Fidel)
 - [❌] **News Updates** - Full Stack (Mato)
 - [ ] **Maps** - Full Stack (Peter)
 
