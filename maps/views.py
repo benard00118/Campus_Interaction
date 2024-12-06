@@ -6,7 +6,7 @@ import math
 
 
 def maps(request):
-    return render(request, "maps/base.html")
+    return render(request, "maps/maps.html")
 
 
 def search_building(request):
