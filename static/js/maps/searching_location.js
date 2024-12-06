@@ -201,14 +201,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateRecentSearches = () => {
     const header = `<div class="recent-suggestions-header">Recent Searches</div>`;
     
-    const suggestions = recentSearches
-      .map(
-        (search) => `
-          <div class="suggestion-item">${search}</div>`
-      )
-      .join("");
-    
-    suggestionsContainer.innerHTML = header + suggestions;
+    if (recentSearches.length === 0) {
+      suggestionsContainer.innerHTML = header + '<div class="no-recent-searches">No recent searches found.</div>';
+    } else {
+      const suggestions = recentSearches
+        .map(
+          (search) => `
+            <div class="suggestion-item">${search}</div>`
+        )
+        .join("");
+      
+      suggestionsContainer.innerHTML = header + suggestions;
+    }
   
     document.querySelectorAll(".suggestion-item").forEach((item) => {
       item.addEventListener("click", () => {
@@ -217,6 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   };
+  
   
 
   searchButton.addEventListener("click", () => {
