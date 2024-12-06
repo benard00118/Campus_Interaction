@@ -1469,7 +1469,7 @@ def delete_post_rule(request, rule_id):
             }
         )
     except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+        logging.error("Error deleting comment rule: %s", str(e))
 
 
 @login_required
@@ -1485,7 +1485,7 @@ def delete_comment_rule(request, rule_id):
             }
         )
     except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+        logging.error("Error deleting post rule: %s", str(e))
 
 
 @login_required
