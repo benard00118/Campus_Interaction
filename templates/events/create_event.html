@@ -1,249 +1,210 @@
 {% extends 'base.html' %}
-{% block title %}Create New Event{% endblock %}
+
+{% block title %}Create Event{% endblock %}
 {% load form_tags %}
-{% load static %}
+
 {% block extra_css %}
-<style>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        .content-editor {
+            min-height: 300px;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 1rem;
+        }
+        .hidden {
+            display: none;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            color: #007bff;
+        }
+        .form-section {
+            padding: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            margin-bottom: 1.5rem;
+            background-color: #f9f9f9;
+        }
+    </style>
+    {% endblock %}
 
-    .form-card {
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .form-step {
-        display: none;
-    }
-    
-    .form-step.active {
-        display: block;
-    }
-    
-    .step-indicator {
-        display: flex;
-        justify-content: center;
-        margin-bottom: 2rem;
-    }
-    
-    .step {
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        background: #e9ecef;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 1rem;
-        position: relative;
-        z-index: 1;
-    }
-    
-    .step.active {
-        background: #0d6efd;
-        color: white;
-    }
-    
-    .step.completed {
-        background: #198754;
-        color: white;
-    }
-    
-    .step-connector {
-        flex-grow: 1;
-        height: 2px;
-        background: #e9ecef;
-        margin-top: 17px;
-        max-width: 100px;
-    }
-    
-    .step-connector.active {
-        background: #0d6efd;
-    }
-    
-    .preview-image {
-        max-width: 100%;
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    .floating-hint {
-        position: absolute;
-        right: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-        font-size: 0.875rem;
-    }
-
-    .navigation-buttons {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 2rem;
-    }
-
-    .step-title {
-        text-align: center;
-        margin-bottom: 1.5rem;
-        color: #0d6efd;
-    }
-
-    .form-progress {
-        height: 4px;
-        margin: 2rem 0;
-        max-width: 500px;
-        margin-left: auto;
-        margin-right: auto;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container-fluid bg-light min-vh-100 py-5">
-    <div class="container">
+    {% block content %}
+    <div class="container mt-5">
         <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <!-- Header Section -->
-                <div class="text-center mb-4">
-                    <h1 class="fw-bold mb-3">Create Your Event</h1>
-                    <p class="text-muted">Complete the following steps to create your event</p>
-                </div>
+            <div class="col-md-8">
+                <h2 class="text-center mb-4">Create Event</h2>
+                <form method="POST" enctype="multipart/form-data" id="event-form" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    <!-- Event Type Selection -->
+                    <div class="mb-3">
+                        <label for="id_event_type" class="form-label">Event Type</label>
+                        <select id="id_event_type" name="event_type" class="form-control">
+                            <option value="physical">Physical Event</option>
+                            <option value="text">Text-Based Event</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Common Fields -->
+                    <div class="section-title">Event Details</div>
+                    <div class="form-section">
+                        <div class="mb-3">
+                            <label for="id_title" class="form-label">Title</label>
+                            <input type="text" id="id_title" name="title" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea id="id_description" name="description" class="form-control" required></textarea>
+                        </div>
+                    </div>
 
-                <!-- Step Indicators -->
-                <div class="step-indicator mb-4">
-                    <div class="step active" data-step="1">1</div>
-                    <div class="step-connector"></div>
-                    <div class="step" data-step="2">2</div>
-                    <div class="step-connector"></div>
-                    <div class="step" data-step="3">3</div>
-                </div>
-
-                <!-- Progress Bar -->
-                <div class="progress form-progress">
-                    <div class="progress-bar" role="progressbar" style="width: 33%"></div>
-                </div>
-
-                <!-- Form Card -->
-                <div class="form-card p-4">
-                    <form method="POST" enctype="multipart/form-data" id="event-form" class="needs-validation" novalidate>
-                        {% csrf_token %}
-
-                        <!-- Step 1: Basic Information -->
-                        <div class="form-step active" id="step1">
-                            <h3 class="step-title">Basic Information</h3>
-                            
-                            <div class="form-floating mb-3">
-                                <input type="text" id="id_title" name="title" class="form-control form-control-lg" placeholder="Event Title" required>
-                                <label for="id_title">Event Title</label>
-                            </div>
-
-                            <div class="form-floating mb-3">
-                                <select id="id_event_type" name="event_type" class="form-select form-select-lg" required>
-                                    <option value="physical">🏢 Physical Event</option>
-                                    <option value="text">📝 Text-Based Event</option>
-                                </select>
-                                <label for="id_event_type">Event Type</label>
-                            </div>
-
-                            <div class="form-floating mb-3">
-                                <textarea id="id_description" name="description" class="form-control" style="height: 120px" required placeholder="Description"></textarea>
-                                <label for="id_description">Description</label>
-                                <div class="floating-hint">
-                                    <span id="char-count">0</span>/500
-                                </div>
-                            </div>
-
-                            <div class="navigation-buttons">
-                                <div></div> <!-- Empty div for spacing -->
-                                <button type="button" class="btn btn-primary btn-lg next-step">Next <i class="fas fa-arrow-right ms-2"></i></button>
-                            </div>
+                    <!-- Text-based Event Fields -->
+                    <div id="text-fields" class="form-section">
+                        <div class="section-title">Text-based Event Details</div>
+                        <div class="mb-3">
+                            <label for="id_content" class="form-label">Event Content</label>
+                            <textarea id="id_content" name="content" class="form-control content-editor"></textarea>
                         </div>
 
-                        <!-- Step 2: Event Details -->
-                        <div class="form-step" id="step2">
-                            <h3 class="step-title">Event Details</h3>
-                            
-                            <!-- Physical Event Fields -->
-                            <div id="physical-fields" class="form-section">
-                                <div class="form-floating mb-3">
-                                    <input type="text" id="id_location" name="location" class="form-control form-control-lg" placeholder="Location">
-                                    <label for="id_location">Location</label>
-                                </div>
+                        <div class="mb-3">
+                            <label for="id_attachments" class="form-label">Attachments</label>
+                            <input type="file" id="id_attachments" name="attachments" class="form-control">
+                            <small class="text-muted">Upload any relevant files for the text-based event</small>
+                        </div>
+                    </div>
 
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold">Cover Image</label>
-                                    <div class="drop-zone p-5 text-center border rounded-3 mb-3" id="drop-zone">
-                                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
-                                        <p class="mb-0">Drag and drop your image here or click to browse</p>
-                                        <input type="file" id="id_image" name="image" class="form-control visually-hidden" accept="image/*">
-                                    </div>
-                                    <div id="image-preview" class="mt-3 text-center"></div>
-                                </div>
-                            </div>
-
-                            <!-- Text Event Fields -->
-                            <div id="text-fields" class="form-section">
-                                <div class="form-floating mb-3">
-                                    <textarea id="id_content" name="content" class="form-control" style="height: 200px" placeholder="Content"></textarea>
-                                    <label for="id_content">Event Content</label>
-                                </div>
-                            </div>
-
-                            <div class="navigation-buttons">
-                                <button type="button" class="btn btn-outline-primary btn-lg prev-step"><i class="fas fa-arrow-left me-2"></i> Previous</button>
-                                <button type="button" class="btn btn-primary btn-lg next-step">Next <i class="fas fa-arrow-right ms-2"></i></button>
-                            </div>
+                    <!-- Schedule and Settings -->
+                    <div class="section-title">Schedule and Settings</div>
+                    <div class="form-section">
+                        <div class="mb-3">
+                            <label for="id_start_date" class="form-label">Start Date</label>
+                            <input type="datetime-local" id="id_start_date" name="start_date" class="form-control" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_end_date" class="form-label">End Date</label>
+                            <input type="datetime-local" id="id_end_date" name="end_date" class="form-control" required>
                         </div>
 
-                        <!-- Step 3: Schedule & Settings -->
-                        <div class="form-step" id="step3">
-                            <h3 class="step-title">Schedule & Settings</h3>
-
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <div class="form-floating">
-                                        <input type="datetime-local" id="id_start_date" name="start_date" class="form-control" required>
-                                        <label for="id_start_date">Start Date & Time</label>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-floating">
-                                        <input type="datetime-local" id="id_end_date" name="end_date" class="form-control" required>
-                                        <label for="id_end_date">End Date & Time</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-floating mb-3 mt-3">
-                                <input type="number" id="id_max_participants" name="max_participants" class="form-control" placeholder="Max Participants">
-                                <label for="id_max_participants">Maximum Participants (Optional)</label>
-                            </div>
-
-                            <div class="form-check form-switch mb-3">
-                                <input type="checkbox" id="id_is_public" name="is_public" class="form-check-input" role="switch">
-                                <label class="form-check-label" for="id_is_public">Make this event public</label>
-                            </div>
-
-                            <div class="navigation-buttons">
-                                <button type="button" class="btn btn-outline-primary btn-lg prev-step"><i class="fas fa-arrow-left me-2"></i> Previous</button>
-                                <button type="submit" class="btn btn-success btn-lg">
-                                    <i class="fas fa-check me-2"></i> Create Event
-                                </button>
-                            </div>
+                        <!-- Location (only for physical events) -->
+                        <div id="location-field" class="mb-3">
+                            <label for="id_location" class="form-label">Location</label>
+                            <input type="text" id="id_location" name="location" class="form-control">
                         </div>
-                    </form>
+
+                        <div class="mb-3">
+                            <label for="id_max_participants" class="form-label">Max Participants</label>
+                            <input type="number" id="id_max_participants" name="max_participants" class="form-control">
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" id="id_is_public" name="is_public" class="form-check-input">
+                            <label class="form-check-label" for="id_is_public">Is Public?</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload (only for physical events) -->
+                    <div id="image-section" class="mb-4">
+                        <label for="id_image" class="form-label">Cover Image</label>
+                        <input type="file" id="id_image" name="image" class="form-control" accept="image/*">
+                        <small class="text-muted">Upload an image to represent your event</small>
+                        <div id="image-preview" class="mt-2"></div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="text-center mb-3">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-plus-circle me-2"></i>Create Event
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center">
+                    <a href="#" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Events
+                    </a>
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.nicescroll/3.7.6/jquery.nicescroll.min.js"></script>
-    <script src="{% static 'js/events/createEvent.js' %}"></script>
-{% endblock %}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Function to handle event type switching
+            function toggleEventFields() {
+                var eventType = $('#id_event_type').val();
+                
+                // Get form fields
+                var textFields = $('#text-fields');
+                var locationField = $('#location-field');
+                var imageSection = $('#image-section');
+                
+                if (eventType === 'physical') {
+                    // Hide text-based fields and clear their values
+                    textFields.hide();
+                    $('#id_content').val('');
+                    $('#id_attachments').val('');
+                    
+                    // Show physical event fields
+                    locationField.show();
+                    imageSection.show();
+                } else {
+                    // Hide physical event fields and clear their values
+                    locationField.show();
+                    imageSection.hide();
+                    $('#id_location').val('');
+                    $('#id_image').val('');
+                    $('#image-preview').empty();
+                    
+                    // Show text-based fields
+                    textFields.show();
+                }
+            }
 
+            // Initial toggle on page load
+            toggleEventFields();
+
+            // Toggle on event type change
+            $('#id_event_type').on('change', toggleEventFields);
+
+            // Image preview functionality
+            $('#id_image').on('change', function() {
+                var file = this.files[0];
+                var preview = $('#image-preview');
+                
+                if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.html('<img src="' + e.target.result + '" class="img-thumbnail mt-2" style="max-height: 200px;">');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    preview.empty();
+                }
+            });
+
+            // Form validation
+            (function() {
+                'use strict';
+                var forms = document.querySelectorAll('.needs-validation');
+                Array.prototype.slice.call(forms).forEach(function(form) {
+                    form.addEventListener('submit', function(event) {
+                        if (!form.checkValidity()) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        form.classList.add('was-validated');
+                    }, false);
+                });
+            })();
+        });
+    </script>
+{% endblock%}
