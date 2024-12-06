@@ -23,7 +23,8 @@ def resources(request):
         'documents': documents
     }
     
-    return HttpResponse("Hi")
+    return render(request, 'resources/resources.html',context)
+
     pass
 
 
