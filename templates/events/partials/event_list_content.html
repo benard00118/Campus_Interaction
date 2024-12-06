@@ -83,8 +83,27 @@
         </ul>
     </nav>
 {% else %}
-    <div class="text-center text-muted py-5">
-        <i class="fas fa-calendar-times fa-3x mb-3"></i>
-        <p>No events found.</p>
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <i class="fas fa-calendar fa-3x"></i>
     </div>
+    <h3 class="empty-state-title">No Events Found</h3>
+    <p class="empty-state-description">
+        {% if request.GET.campus or request.GET.status %}
+            Try adjusting your filters to see more events
+        {% else %}
+            Get started by creating your first event
+        {% endif %}
+    </p>
+    <div class="empty-state-actions">
+        <a href="{% url 'events:create_event' %}" class="btn btn-primary empty-state-btn">
+            <i class="fas fa-plus"></i> Create New Event
+        </a>
+        {% if request.GET.campus or request.GET.status %}
+        <button style="display: none;"  onclick="resetFilters()" class="btn btn-outline-secondary empty-state-btn">
+            <i class="fas fa-filter"></i> Reset Filters
+        </button>
+        {% endif %}
+    </div>
+</div>
 {% endif %}

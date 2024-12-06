@@ -1,6 +1,6 @@
 #events/forms.py
 from django import forms
-from .models import Event, Comment, EventRegistration,Reply
+from .models import Event, Comment, EventRegistration
 
 
 class EventForm(forms.ModelForm):
@@ -90,11 +90,6 @@ class CommentForm(forms.ModelForm):
             raise forms.ValidationError("Comment content cannot be empty.")
         return content.strip()
 
-class ReplyForm(forms.ModelForm):
-    class Meta:
-        model = Reply
-        fields = ['content']
-
 
 class EventRegistrationForm(forms.ModelForm):
     name = forms.CharField(
@@ -120,16 +115,30 @@ class EventRegistrationForm(forms.ModelForm):
             self.fields['name'].initial = self.user.get_full_name() or self.user.username
             self.fields['email'].initial = self.user.email
     
-   
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Validate name is not empty
+        name = cleaned_data.get('name', '').strip()
+        if not name:
+            raise forms.ValidationError({"name": "Name cannot be blank"})
+        cleaned_data['name'] = name
 
-    def clean(self):
-        name = self.cleaned_data.get('name')
-        if not name or name.strip() == '':
-            raise forms.ValidationError("Name is required.")
-        return name.strip()
-    def clean(self):
-        if self.event and self.event.max_participants:
-            current_registrations = EventRegistration.objects.filter(event=self.event).count()
-            if current_registrations >= self.event.max_participants:
-                raise forms.ValidationError("Event has reached the maximum number of participants.")
-        return super().clean()
+        # Validate email
+        email = cleaned_data.get('email', '').strip()
+        if not email:
+            raise forms.ValidationError({"email": "Email cannot be blank"})
+        
+        # Event-specific validations
+        if self.event:
+            # Check for existing registration
+            existing_registration = EventRegistration.objects.filter(
+                event=self.event,
+                participant=self.user.profile,
+                status__in=['registered', 'waitlist']
+            ).exists()
+
+            if existing_registration:
+                raise forms.ValidationError("You are already registered for this event")
+
+        return cleaned_data
