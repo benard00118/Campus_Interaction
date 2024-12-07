@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let recentSearches = [];
   let userLocation = null;
-  let locationAttempts = 0;
   const MAX_LOCATION_ATTEMPTS = 3;
   const API_KEY = ""; // Replace with your Google Maps API key
 
