@@ -40,7 +40,7 @@ Interactive platform for Kenyan university students featuring:
   - Backend: Fidel
 - **News Updates**
 
-  - Full Stack: Mato
+  - Full Stack: None
 - **Maps**
 
   - Full Stack: Peter
@@ -88,10 +88,10 @@ Use this list to track progress. Mark tasks as completed by adding a ✅ at the 
 
 - [✅] **Forums & Communities** - Frontend (Victor)
 - [✅] **Forums & Communities** - Backend (Fidel)
-- [❌] **News Updates** - Full Stack (Mato)
+- [❌] **News Updates** - Full Stack (None)
 - [ ] **Maps** - Full Stack (Peter)
 
-- [✅] **Resource Sharing** - Full Stack (Samtech)
+- [✅] **Resource Sharing** - Full Stack (Mato)
 
 - [✅] **Marketplace** - Full Stack (Victor)
 
