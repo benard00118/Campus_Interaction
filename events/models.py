@@ -82,7 +82,6 @@ class Event(models.Model):
     is_public = models.BooleanField(default=True)
     is_waitlist_open = models.BooleanField(default=True)
     category = models.ForeignKey(EventCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='events')
-    location = models.CharField(max_length=200, help_text="Event location (optional for text-based events).", blank=True, null=True)
     image = models.ImageField(upload_to='event_images/', null=True, blank=True)
     campus = models.ForeignKey(Profile, on_delete=models.SET_NULL, null=True, related_name='campus_events')
     organizer = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='organized_events')
