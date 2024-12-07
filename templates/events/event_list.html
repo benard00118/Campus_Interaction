@@ -2,41 +2,40 @@
 {% block title %}All Events{% endblock %}
 {% block content %}
 <div class="container my-5" x-data="{ showFilters: false }">
-    <div class="container my-5" x-data="{ showFilters: false }">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="display-4">All Events</h1>
-            <a href="{% url 'events:create_event' %}" class="btn btn-success shadow-sm top-create-btn">
-                <i class="fas fa-plus"></i> Create New Event
-            </a>
-        </div>
+    <!-- Header Section -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-4 fw-bold text-primary">Explore Events</h1>
+        <a href="{% url 'events:create_event' %}" class="btn btn-success shadow rounded-pill px-4 py-2 top-create-btn">
+            <i class="fas fa-plus me-2"></i>Create Event
+        </a>
+    </div>
+
     <!-- Toggle Filters Button -->
-    <button @click="showFilters = !showFilters" 
-            class="btn btn-primary mb-3">
-        <i class="fas fa-filter"></i> Toggle Filters
+    <button style="display: none;" @click="showFilters = !showFilters" class="btn btn-outline-primary mb-3 shadow-sm">
+        <i class="fas fa-filter me-2" ></i>Filter Events
     </button>
 
     <!-- Filters Section -->
-    <div x-show="showFilters" class="bg-light p-4 rounded shadow-sm mb-4">
+    <div x-show="showFilters" class="bg-white p-4 rounded shadow mb-4" style="transition: all 0.3s;">
         <form class="row g-3">
             <div class="col-md-6">
-                <label for="campus" class="form-label">Campus</label>
-                <select name="campus" id="campus" class="form-select"
+                <label for="campus" class="form-label text-secondary">Campus</label>
+                <select name="campus" id="campus" class="form-select shadow-sm rounded-pill"
                         hx-get="{% url 'events:event_list' %}"
                         hx-target="#events-container"
                         hx-trigger="change"
                         hx-indicator="#loading-indicator">
                     <option value="">All Campuses</option>
                     {% for campus in campuses %}
-                        <option value="{{ campus }}" 
-                                {% if campus == request.GET.campus %}selected{% endif %}>
+                        <option value="{{ campus }}" {% if campus == request.GET.campus %}selected{% endif %}>
                             {{ campus }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-6">
-                <label for="status" class="form-label">Status</label>
-                <select name="status" id="status" class="form-select"
+                <label for="status" class="form-label text-secondary">Status</label>
+                <select name="status" id="status" class="form-select shadow-sm rounded-pill"
                         hx-get="{% url 'events:event_list' %}"
                         hx-target="#events-container"
                         hx-trigger="change"
@@ -68,6 +67,37 @@
 </div>
 {% block extra_css %}
 <style>
+    body {
+        background-color: #f8f9fa; /* Light gray background */
+        font-family: 'Inter', sans-serif;
+    }
+    h1 {
+        font-weight: 700;
+    }
+    .btn-primary, .btn-success {
+        background-color: #0062cc;
+        border: none;
+    }
+    .btn-primary:hover, .btn-success:hover {
+        background-color: #004bb5;
+    }
+    .btn-outline-primary {
+        color: #0062cc;
+        border-color: #0062cc;
+    }
+    .btn-outline-primary:hover {
+        background-color: #0062cc;
+        color: #fff;
+    }
+    .form-select {
+        border: 1px solid #ddd;
+    }
+    .shadow {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .rounded-pill {
+        border-radius: 50rem;
+    }
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
@@ -76,56 +106,279 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         transition: all 0.3s ease;
     }
-    /* ... rest of your CSS ... */
+    .empty-state:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .spinner-border {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    :root {
+        --primary-color: #3498db;
+        --secondary-color: #2ecc71;
+        --text-color: #333;
+        --background-color: #f4f6f9;
+    }
+
+    body {
+        background-color: var(--background-color);
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .filters-container {
+        background-color: white;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    
+    .event-card-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-gap: 2rem;
+      }
+    .event-status-badge {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        z-index: 10;
+        padding: 5px 10px;
+        border-radius: 1.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .event-card-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+      
+    .status-upcoming { 
+        background-color: #28a745;
+        color: white;
+    }
+
+    .status-ongoing { 
+        background-color: #ffc107;
+        color: black;
+    }
+
+    .status-completed { 
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .event-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        width:100%;
+        
+    }
+
+    .event-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .event-card-image {
+        height: 500px;
+        object-fit: cover;
+        width: 100%;
+        transition: transform 0.3s ease;
+    }
+
+    .event-card:hover .event-card-image {
+        transform: scale(1.05);
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+    }
+
+    .event-details-btn {
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        transition: background-color 0.2s ease;
+    }
+
+    .event-details-btn:hover {
+        background-color: #2980b9;
+    }
+
+    @media (max-width: 768px) {
+        .event-card-image {
+            height: 200px;
+        }
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .empty-state {
+        background-color: white;
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1.5rem;
+        border-radius: 2rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: background-color 0.2s;
+      }
+      
+      .btn-primary {
+        background-color: var(--primary-color);
+        color: white;
+      }
+      
+      .btn-primary:hover {
+        background-color: #2980b9;
+      }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     function resetFilters() {
-        // Reset select elements
         document.getElementById('campus').value = '';
         document.getElementById('status').value = '';
-        
-        // Trigger HTMX request on campus select
         document.getElementById('campus').dispatchEvent(new Event('change'));
-        
-        // Close filters panel if using Alpine.js
-        if (typeof Alpine !== 'undefined') {
-            Alpine.store('showFilters', false);
-        }
-    }
-        // Function to handle visibility of the top create event button
-    function handleCreateButtonVisibility() {
-        const topCreateButton = document.querySelector('.top-create-btn');
-        const eventsContainer = document.getElementById('events-container');
-        const emptyState = eventsContainer.querySelector('.empty-state');
-        
-        if (topCreateButton) {
-            topCreateButton.style.display = emptyState ? 'none' : 'inline-flex';
-        }
     }
 
-    // Function to reset filters
-    function resetFilters() {
-        // Reset select elements
-        document.getElementById('campus').value = '';
-        document.getElementById('status').value = '';
-        
-        // Trigger HTMX request on campus select
-        document.getElementById('campus').dispatchEvent(new Event('change'));
-        
-        // Close filters panel if using Alpine.js
-        if (typeof Alpine !== 'undefined') {
-            Alpine.store('showFilters', false);
-        }
-    }
-
-    // Initialize button visibility
-    document.addEventListener('DOMContentLoaded', handleCreateButtonVisibility);
-
-    // Handle HTMX after-swap event to update button visibility
-    document.body.addEventListener('htmx:afterSwap', handleCreateButtonVisibility);
+    document.addEventListener('DOMContentLoaded', function() {
+        const filters = document.querySelectorAll('.form-select');
+        filters.forEach(filter => {
+            filter.addEventListener('change', () => {
+                document.querySelector('#loading-indicator').style.display = 'block';
+            });
+        });
+    });
 </script>
 {% endblock %}
 {% endblock %}
+
+
+
+
+{# events/templates/events/partials/event_list_content.html #}
+{% if events %}
+    {% for event in events %}
+        <div class="card mb-4 shadow-sm">
+            <!-- Event Header -->
+            <div class="card-header bg-white border-bottom-0 py-3">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <h4 class="mb-1">{{ event.title }}</h4>
+                        <div class="text-muted small">
+                            <i class="fas fa-calendar-alt"></i> 
+                            {{ event.start_date|date:"F d, Y" }}
+                            {% if event.end_date %}
+                                - {{ event.end_date|date:"F d, Y" }}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Event Image -->
+            {% if event.image %}
+                <img src="{{ event.image.url }}" 
+                     alt="{{ event.title }}" 
+                     class="card-img-top" 
+                     style="max-height: 400px; object-fit: cover;">
+            {% endif %}
+            
+            <!-- Event Content -->
+            <div class="card-body">
+                <p class="card-text">{{ event.description }}</p>
+                
+                {% if event.event_type == 'text' %}
+                    <div class="card-text text-muted mb-3">
+                        {{ event.content|truncatewords:50 }}
+                    </div>
+                {% endif %}
+                
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <a href="{% url 'events:event_detail' event.id %}" 
+                       class="btn btn-primary">
+                        <i class="fas fa-info-circle"></i> View Details
+                    </a>
+                    <div class="text-muted">
+                        <i class="fas fa-map-marker-alt"></i> 
+                        {{ event.location|default:"Location TBA" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+
+    <!-- Pagination -->
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if events.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="#" 
+                       hx-get="{% url 'events:event_list' %}?page={{ events.previous_page_number }}"
+                       hx-target="#events-container">
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </a>
+                </li>
+            {% endif %}
+            {% for page_num in events.paginator.page_range %}
+                <li class="page-item {% if events.number == page_num %}active{% endif %}">
+                    <a class="page-link" href="#"
+                       hx-get="{% url 'events:event_list' %}?page={{ page_num }}"
+                       hx-target="#events-container">
+                        {{ page_num }}
+                    </a>
+                </li>
+            {% endfor %}
+            {% if events.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="#"
+                       hx-get="{% url 'events:event_list' %}?page={{ events.next_page_number }}"
+                       hx-target="#events-container">
+                        Next <i class="fas fa-arrow-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <i class="fas fa-calendar fa-3x"></i>
+    </div>
+    <h3 class="empty-state-title">No Events Found</h3>
+    <p class="empty-state-description">
+        {% if request.GET.campus or request.GET.status %}
+            Try adjusting your filters to see more events
+        {% else %}
+            Get started by creating your first event
+        {% endif %}
+    </p>
+    <div class="empty-state-actions">
+        <a href="{% url 'events:create_event' %}" class="btn btn-primary empty-state-btn">
+            <i class="fas fa-plus"></i> Create New Event
+        </a>
+        {% if request.GET.campus or request.GET.status %}
+        <button style="display: none;"  onclick="resetFilters()" class="btn btn-outline-secondary empty-state-btn">
+            <i class="fas fa-filter"></i> Reset Filters
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

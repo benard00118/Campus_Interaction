@@ -1,261 +1,374 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const eventId = document.getElementById('event-container')?.dataset.eventId;
-    if (!eventId) return;
-
-    const registrationModal = new bootstrap.Modal(document.getElementById('registrationModal'));
-    const form = document.getElementById('registrationForm');
-    const alertsContainer = document.getElementById('registration-alerts');
-    const statusContainer = document.getElementById('registration-status-container');
-    const registerButton = document.getElementById('registerButton');
-    const submitButton = document.getElementById('submitRegistration');
-    
-    // Track registration state
-    let isRegistrationInProgress = false;
-
-    async function checkEventStatus() {
-        try {
-            const response = await fetch(`/events/api/event/${eventId}/status/`);
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const data = await response.json();
-            
-            if (data.success) {
-                updateStatusDisplay(data);
-                if (registerButton) {
-                    updateRegistrationButton(data);
-                }
-            }
-        } catch (error) {
-            console.error('Error checking event status:', error);
+    // Centralized configuration
+    const config = {
+        selectors: {
+            eventContainer: '#event-container',
+            registrationModal: '#registrationModal',
+            registrationForm: '#registrationForm',
+            alertsContainer: '#registration-alerts',
+            statusContainer: '#registration-status-container',
+            registerButton: '#registerButton',
+            submitRegistrationBtn: '#submitRegistration',
+            cancelRegistrationBtn: '#cancelRegistrationBtn'
+        },
+        urls: {
+            base: '/events', // Base events URL
+            register: (eventId) => `/events/event/${eventId}/register/`,
+            cancel: (eventId) => `/events/event/${eventId}/cancel/`,
+            status: (eventId) => `/events/api/event/${eventId}/status/`,
+            redirect: '/events/'
+        },
+        retryConfig: {
+            maxRetries: 3,
+            baseDelay: 1000 // Base delay in milliseconds
         }
-    }
+    };
 
-    function updateRegistrationButton(data) {
-        if (!registerButton) return;
-    
-        const maxParticipants = data.max_participants;
-        const spotsLeft = data.spots_left;
-    
-        registerButton.disabled = false;
-    
-        if (maxParticipants === null || spotsLeft > 0) {
-            registerButton.classList.remove('btn-warning');
-            registerButton.classList.add('btn-success');
-            registerButton.innerHTML = '<i class="fas fa-user-plus"></i> Register for Event';
-        } else {
-            registerButton.classList.remove('btn-success');
-            registerButton.classList.add('btn-warning');
-            registerButton.innerHTML = '<i class="fas fa-user-plus"></i> Join Waiting List';
-        }
-    }
+    // Utility Functions
+    const utils = {
+        getElement: (selector) => document.querySelector(selector),
+        getElements: (selector) => document.querySelectorAll(selector),
+        
+        showAlert: (type, message) => {
+            const alertsContainer = utils.getElement(config.selectors.alertsContainer);
+            if (!alertsContainer) return;
+            
+            alertsContainer.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle me-2"></i> 
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+        },
 
-    function updateStatusDisplay(data) {
-        try {
-            const spotsCounter = document.getElementById('spots-counter');
-            const waitlistCounter = document.getElementById('waitlist-counter');
-            
-            if (spotsCounter) {
-                spotsCounter.textContent = data.spots_left === null ? 'Unlimited' : data.spots_left;
+        clearFormErrors: () => {
+            utils.getElements('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            utils.getElements('.invalid-feedback').forEach(el => el.textContent = '');
+        },
+
+        getCsrfToken: () => {
+            const token = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!token) {
+                throw new Error('CSRF token not found');
             }
-            
-            if (waitlistCounter && typeof data.waitlist_count !== 'undefined') {
-                waitlistCounter.textContent = `${data.waitlist_count} people`;
-                if (waitlistCounter.parentElement) {
-                    waitlistCounter.parentElement.style.display = 
-                        data.waitlist_count > 0 ? 'flex' : 'none';
-                }
-            }
-        } catch (error) {
-            console.error('Error updating status display:', error);
+            return token.value;
         }
-    }
-    async function handleRegistration(e) {
-        e.preventDefault();
-        
-        // Prevent multiple submissions
-        if (isRegistrationInProgress) return;
-        
-        // Clear previous alerts
-        clearAlerts();
-        
-        // Disable submit button and show loading state
-        isRegistrationInProgress = true;
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-        
-        try {
-            // Validate form data client-side
-            const nameInput = document.getElementById('id_name');
-            const emailInput = document.getElementById('id_email');
-            
-            if (!nameInput.value.trim() || !emailInput.value.trim()) {
-                throw new Error('Please fill in all required fields');
+    };
+
+    // Event Registration Handler
+    class EventRegistration {
+        constructor() {
+            this.eventId = this.getEventId();
+            this.registrationModal = new bootstrap.Modal(utils.getElement(config.selectors.registrationModal));
+            this.init();
+        }
+
+        getEventId() {
+            const eventContainer = utils.getElement(config.selectors.eventContainer);
+            if (!eventContainer) {
+                console.error('Event container not found');
+                return null;
             }
-            
+            const eventId = eventContainer.dataset.eventId;
+            if (!eventId) {
+                console.error('Event ID is missing');
+                return null;
+            }
+            return eventId;
+        }
+
+        init() {
+            this.bindEvents();
+            this.checkEventStatus();
+            // Periodic status check
+            setInterval(() => this.checkEventStatus(), 50000);
+        }
+
+        bindEvents() {
+            const form = utils.getElement(config.selectors.registrationForm);
+            const submitBtn = utils.getElement(config.selectors.submitRegistrationBtn);
+            const cancelBtn = utils.getElement(config.selectors.cancelRegistrationBtn);
+
+            if (form) form.addEventListener('submit', (e) => this.handleRegistration(e));
+            if (submitBtn) submitBtn.addEventListener('click', (e) => this.handleRegistration(e));
+            if (cancelBtn) cancelBtn.addEventListener('click', () => this.handleCancellation());
+        }
+
+        async handleRegistration(event) {
+            event.preventDefault();
+            utils.clearFormErrors();
+
+            const form = utils.getElement(config.selectors.registrationForm);
             const formData = new FormData(form);
-            
-            // Add additional debugging information
-            formData.append('debug', 'frontend_submission');
-            
-            const response = await fetch(`/events/event/${eventId}/register/`, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+
+            try {
+                const response = await this.fetchWithRetry(
+                    config.urls.register(this.eventId), 
+                    {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': utils.getCsrfToken()
+                        }
+                    }
+                );
+
+                if (response.success) {
+                    utils.showAlert('success', response.message);
+                    setTimeout(() => {
+                        this.registrationModal.hide();
+                        window.location.href = config.urls.redirect;
+                    }, 1500);
+                } else {
+                    this.handleErrors(response.errors || response.error);
                 }
-            });
-            
-            // Parse response
-            const data = await response.json();
-            
-            // Handle response
-            if (data.success) {
-                // Immediate success handling
-                showAlert('success', data.message);
+            } catch (error) {
+                console.error('Registration error:', error);
+                utils.showAlert('danger', 'An unexpected error occurred. Please try again.');
+            }
+        }
+
+        async handleCancellation() {
+            if (!confirm('Are you sure you want to cancel your registration?')) return;
+        
+            try {
+                const response = await this.fetchWithRetry(
+                    config.urls.cancel(this.eventId), 
+                    {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': utils.getCsrfToken()
+                        }
+                    }
+                );
+        
+                if (response.success) {
+                    const statusContainer = utils.getElement(config.selectors.statusContainer);
+                    if (statusContainer) statusContainer.innerHTML = '';
+        
+                    // Update UI based on additional context
+                    if (response.waitlist_promoted) {
+                        utils.showAlert('info', 'A waiting list participant has been promoted to the event.');
+                    }
+        
+                    await this.checkEventStatus();
+                    
+                    utils.showAlert('success', response.message || 'Registration cancelled successfully');
+                    setTimeout(() => {
+                        window.location.href = config.urls.redirect;
+                    }, 1500);
+                } else {
+                    // Enhanced error handling
+                    let errorMessage = response.error || 'Failed to cancel registration';
+                    
+                    // Log additional details for debugging
+                    // console.error('Cancellation error details:', response.details);
+                    console.error('Cancellation Failed:', {
+                        eventId: this.eventId,
+                        errorDetails: response.details,
+                        timestamp: new Date().toISOString()});
+                    // Provide more context in the error message
+                    if (response.details) {
+                        errorMessage += `. Total registrations: ${response.details.total_registrations}`;
+                        errorMessage += `. Statuses: ${response.details.registration_statuses.join(', ')}`;
+                    }
+        
+                    utils.showAlert('danger', errorMessage);
+                }
+            } catch (error) {
+                utils.showAlert('danger', 'An unexpected error occurred while cancelling registration');
+                console.error('Cancellation error:', error);
+            }
+        }
+
+        async fetchWithRetry(url, options, retryCount = 0) {
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+
+                if (!data.success && data.error && data.error.includes('currently being processed')) {
+                    if (retryCount < config.retryConfig.maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, config.retryConfig.baseDelay * (retryCount + 1)));
+                        return this.fetchWithRetry(url, options, retryCount + 1);
+                    }
+                }
+
+                return data;
+            } catch (error) {
+                if (retryCount < config.retryConfig.maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, config.retryConfig.baseDelay * (retryCount + 1)));
+                    return this.fetchWithRetry(url, options, retryCount + 1);
+                }
+                throw error;
+            }
+        }
+
+        async checkEventStatus() {
+            try {
+                const response = await fetch(config.urls.status(this.eventId));
+                const data = await response.json();
                 
-                // Reload page or update UI
-                setTimeout(() => {
-                    registrationModal.hide();
-                    location.reload(); // Ensures fresh state
-                }, 1500);
-            } else {
-                // Handle specific error
-                throw new Error(data.error || 'Registration failed');
+                if (data.success) {
+                    this.updateRegistrationButton({
+                        max_participants: data.total_spots || null,
+                        spots_left: data.spots_left || null,
+                        userStatus: {
+                            is_registered: data.user_status?.is_registered || false,
+                            status: data.user_status?.status || null
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error checking event status:', error);
             }
-        } catch (error) {
-            // Show error message
-            showAlert('danger', error.message || 'An unexpected error occurred');
-            
-            // Log error for debugging
-            console.error('Registration error:', error);
-        } finally {
-            // Reset button state
-            isRegistrationInProgress = false;
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'Register';
         }
-    }
 
+        updateRegistrationButton(event) {
+            const registerButton = utils.getElement(config.selectors.registerButton);
+            if (!registerButton) return;
+        
+            // Destructure event details with default values
+            const {
+                max_participants = null, 
+                spots_left = 0, 
+                userStatus = { 
+                    is_registered: false, 
+                    status: null 
+                },
+                event_start_date = null,
+                registration_open = true
+            } = event;
+        
+            // Button configuration object for different scenarios
+            const buttonStates = {
+                // Registered states
+                registered: {
+                    class: 'btn-danger',
+                    icon: 'times',
+                    text: 'Cancel Registration'
+                },
+                waitlist: {
+                    class: 'btn-warning',
+                    icon: 'clock',
+                    text: 'On Waiting List'
+                },
+                
+                // Available states
+                available: {
+                    class: 'btn-success',
+                    icon: 'user-plus',
+                    text: 'Register for Event'
+                },
+                
+                // Full event states
+                full: {
+                    class: 'btn-warning',
+                    icon: 'user-plus',
+                    text: 'Join Waiting List'
+                },
+                
+                // Closed states
+                closed: {
+                    class: 'btn-secondary',
+                    icon: 'ban',
+                    text: 'Registration Closed'
+                },
+                past: {
+                    class: 'btn-secondary',
+                    icon: 'calendar-times',
+                    text: 'Event Passed'
+                }
+            };
+        
+            // Determine button state logic
+            const determineButtonState = () => {
+                // Event has passed
+                if (event_start_date && new Date(event_start_date) < new Date()) {
+                    return 'past';
+                }
+        
+                // Registration not open
+                if (!registration_open) {
+                    return 'closed';
+                }
+        
+                // User is already registered
+                if (userStatus.is_registered) {
+                    return userStatus.status === 'registered' ? 'registered' : 'waitlist';
+                }
+        
+                // Event has unlimited spots or has available spots
+                if (max_participants === null || spots_left > 0) {
+                    return 'available';
+                }
+        
+                // Event is full
+                return 'full';
+            };
+        
+            // Get the current state
+            const currentState = determineButtonState();
+            const buttonConfig = buttonStates[currentState];
+        
+            // Reset button classes
+            registerButton.className = 'btn ' + buttonConfig.class;
+        
+            // Update button content
+            registerButton.innerHTML = `
+                <i class="fas fa-${buttonConfig.icon}"></i> 
+                ${buttonConfig.text}
+            `;
+        
+            // Dynamic button interactivity
+            registerButton.disabled = currentState === 'closed' || currentState === 'past';
+        
+            // Optional: Add tooltips or additional context
+            if (currentState === 'full') {
+                registerButton.setAttribute('title', `Event is full. ${spots_left || 0} spots left on waiting list`);
+            } else if (currentState === 'past') {
+                registerButton.setAttribute('title', 'This event has already occurred');
+            }
+        
+            // Optionally, add data attributes for further customization
+            registerButton.dataset.eventState = currentState;
+            registerButton.dataset.spotsLeft = spots_left || 0;
+            registerButton.dataset.maxParticipants = max_participants || 0;
+        }
 
-    async function handleCancellation(e) {
-        e.preventDefault();
-        if (!confirm('Are you sure you want to cancel your registration?')) return;
-        
-        const cancelButton = e.target.closest('#cancelRegistrationBtn');
-        if (!cancelButton) return;
-        
-        cancelButton.disabled = true;
-        cancelButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cancelling...';
-        
-        try {
-            const response = await fetch(`/events/event/${eventId}/cancel/`, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        handleErrors(errors) {
+            if (typeof errors === 'string') {
+                utils.showAlert('danger', errors);
+                return;
+            }
+            
+            Object.entries(errors).forEach(([field, messages]) => {
+                const input = document.getElementById(`id_${field}`);
+                const feedback = document.getElementById(`${field}-error`);
+                
+                if (input && feedback) {
+                    input.classList.add('is-invalid');
+                    feedback.textContent = Array.isArray(messages) ? messages.join(' ') : messages;
                 }
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showAlert('success', 'Registration cancelled successfully');
-                // Clear any cached registration data
-                clearRegistrationState();
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-            } else {
-                throw new Error(data.error || 'Failed to cancel registration');
-            }
-        } catch (error) {
-            console.error('Cancellation error:', error);
-            showAlert('danger', error.message || 'An error occurred while cancelling registration');
-            cancelButton.disabled = false;
-            cancelButton.innerHTML = '<i class="fas fa-times"></i> Cancel Registration';
-        }
-    }
-
-    // New function to clear registration state
-    function clearRegistrationState() {
-        // Reset form if it exists
-        if (form) {
-            form.reset();
-        }
-        
-        // Clear any error messages
-        clearAlerts();
-        
-        // Remove any invalid states from form fields
-        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-        
-        // Reset registration button state
-        if (submitButton) {
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'Register';
-        }
-    }
-
-    function showAlert(type, message) {
-        if (!alertsContainer) return;
-        
-        alertsContainer.innerHTML = '';
-        
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type}`;
-        alert.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i> ${message}`;
-        alertsContainer.appendChild(alert);
-    }
-
-    function clearAlerts() {
-        if (alertsContainer) {
-            alertsContainer.innerHTML = '';
-        }
-        document.querySelectorAll('.invalid-feedback').forEach(el => el.textContent = '');
-        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-    }
-
-    function handleErrors(errors) {
-        if (typeof errors === 'string') {
-            showAlert('danger', errors);
-            return;
-        }
-        
-        for (const [field, messages] of Object.entries(errors)) {
-            const input = document.getElementById(`id_${field}`);
-            const feedback = document.getElementById(`${field}-error`);
-            if (input && feedback) {
-                input.classList.add('is-invalid');
-                feedback.textContent = messages.join(' ');
+            if (Object.keys(errors).length === 0) {
+                utils.showAlert('danger', 'Registration failed. Please check your details.');
             }
         }
     }
 
-    // Event Listeners
-    form?.addEventListener('submit', handleRegistration);
-    
-    // Add click handler for submit button
-    submitButton?.addEventListener('click', () => {
-        form?.dispatchEvent(new Event('submit'));
-    });
-    
-    // Add modal hidden event listener to clear state
-    document.getElementById('registrationModal')?.addEventListener('hidden.bs.modal', clearRegistrationState);
-    
-    // Attach cancel button listener
-    const cancelButton = document.getElementById('cancelRegistrationBtn');
-    if (cancelButton) {
-        cancelButton.addEventListener('click', handleCancellation);
-    }
-    
-    // Initial status check
-    checkEventStatus();
-    // Periodic status check
-    setInterval(checkEventStatus, 30000);
+    // Initialize Event Registration
+    new EventRegistration();
+
+    // Expose function to open registration modal globally
+    window.openRegistrationModal = function() {
+        const registrationModal = utils.getElement(config.selectors.registrationModal);
+        if (registrationModal) {
+            new bootstrap.Modal(registrationModal).show();
+        }
+    };
 });
