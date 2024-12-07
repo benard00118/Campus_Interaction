@@ -710,6 +710,8 @@ def post_detail(request, forum_id, post_id):
 
     posts = forum.forums_posts.all().order_by("-created_at")
     user = request.user
+    post.liked = post.likes.filter(user=user).exists()
+    user = request.user
     for forum_post in posts:
         forum_post.liked = forum_post.likes.filter(user=user).exists()
 
