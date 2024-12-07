@@ -220,7 +220,7 @@
         {% if post.approved or post.user == request.user %}
           <article class="post" id="post-{{ post.id }}">
             <a href="{% url 'forums:post_detail' forum_id=post.forum.id post_id=post.id %}" class="post-link"></a>
-            <div class="post-edge-link"></div>
+            <div class="post-clickable-area"></div>
             <div class="author__options">
               <div class="post-author">
                 <img src="{{ post.user.profile.profile_pic.url }}" alt="{{ post.user.username }} Profile" />
