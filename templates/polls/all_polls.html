@@ -22,7 +22,10 @@
   <!-- Poll List -->
   <div style="margin-top: 5px">
     <div class="polls-container">
+      
       <div class="polls_items">
+        {% if polls %}
+        {% if poll.is_public and poll.is_active and not poll.is_archived %}
         <form
           method="GET"
           action="{% url 'polls:base_poll' %}"
@@ -464,6 +467,24 @@
             window.addEventListener("scroll", checkScrollPosition);
           });
         </script>
+        {% endif %}
+        {% else %}
+        <div
+            style="
+              text-align: center;
+              margin: 60px 0;
+              font-size: 24px;
+              color: black;
+            "
+          >
+            <i
+              class="fas fa-poll"
+              aria-hidden="true"
+              style="color: #007bff; font-size: 30px; margin-bottom: 10px"
+            ></i>
+            <b>No Polls Available.</b>
+          </div>
+          {% endif %}
       </div>
 
       <style>
