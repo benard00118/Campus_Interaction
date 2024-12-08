@@ -4,7 +4,7 @@
 A comprehensive platform connecting Kenyan university students through live messaging, forums, events, and resource sharing.
 
 ## 🛠️ Tech Stack
-- Frontend: React
+- Frontend: Django Templating
 - Backend: Django
 - Database: SQLite
 - API: REST
