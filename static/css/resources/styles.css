@@ -88,3 +88,12 @@ img, iframe {
    background-color: #0056b3;
    transform: scale(1.1);
 }
+
+
+form {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   border: 3px solid black;
+   border-radius: 10px;
+}
