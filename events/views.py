@@ -624,6 +624,7 @@ def register_event(request, event_id):
     Enhanced event registration with improved error handling and flexibility
     """
     max_retries = 3
+    backoff_time = 0.5  # Initial backoff time in seconds
     for attempt in range(max_retries):
         
         try:
@@ -634,7 +635,8 @@ def register_event(request, event_id):
                     event = Event.objects.select_for_update(nowait=True).get(id=event_id)
                 except DatabaseError:
                     if attempt < max_retries - 1:
-                        time.sleep(0.5)  # Wait a bit before retrying
+                        time.sleep(backoff_time)  # Wait a bit before retrying
+                        backoff_time *= 2  # Exponential backoff
                         continue
                     else:
                         return JsonResponse({
@@ -717,9 +719,13 @@ def register_event(request, event_id):
                             'spots_left': event.spots_left
                         })
                 
-                except Exception as e:
-                    logger.error(f"Registration attempt {attempt + 1} failed: {str(e)}")
-                    if attempt == max_retries - 1:
+                except Exception as outer_error:
+                    if attempt < max_retries - 1:
+                        time.sleep(backoff_time)
+                        backoff_time *= 2  # Exponential backoff
+                        continue
+                    else:
+                        logger.error(f"Registration error: {outer_error}", exc_info=True)
                         return JsonResponse({
                             'success': False,
                             'error': 'Registration failed. Please try again.'
