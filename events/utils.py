@@ -12,9 +12,6 @@ from urllib.parse import urlencode
 logger = logging.getLogger(__name__)
 
 
-
-logger = logging.getLogger(__name__)
-
 def send_registration_email(registration):
     """Send registration confirmation or waitlist email to participant."""
     max_retries = 3
@@ -70,6 +67,28 @@ def send_registration_email(registration):
             else:
                 raise  # Re-raise the exception after the final attempt
 
+def _send_waitlist_promotion_email(registration):
+    """
+    Send email to promote from waitlist to registered
+    """
+    try:
+        send_mail(
+            subject=f"Waitlist Promotion - {registration.event.title}",
+            message=render_to_string('events/emails/waitlist_promotion.html', {
+                'registration': registration,
+                'event': registration.event,
+                'name': registration.name,
+            }),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[registration.email],
+            html_message=render_to_string('events/emails/waitlist_promotion.html', {
+                'registration': registration,
+                'event': registration.event,
+                'name': registration.name,
+            }),
+        )
+    except Exception as email_error:
+        logger.error(f"Failed to send waitlist promotion email: {email_error}", exc_info=True)
 def send_promotion_email(registration):
     """Send email when participant is promoted from waitlist to registered."""
     max_retries = 3
@@ -109,7 +128,9 @@ def send_promotion_email(registration):
             else:
                 raise  # Re-raise the exception after the final attempt
 
-def send_cancellation_confirmation_email(user, event):
+
+
+def send_cancellation_confirmation_email(user_profile, event):
     """Send cancellation confirmation email to user."""
     try:
         email_context = {
@@ -123,7 +144,7 @@ def send_cancellation_confirmation_email(user, event):
             subject=f'Event Registration Cancelled: {event.title}',
             message=render_to_string('emails/cancellation_confirmation.html', email_context),
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
+            recipient_list=[user_profile.user.email],
             html_message=render_to_string('events/emails/cancellation_confirmation_html.html', email_context)
         )
     except Exception as e:
