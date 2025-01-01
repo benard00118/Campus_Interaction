@@ -143,9 +143,9 @@ class Event(models.Model):
         if self.cancellation_deadline and current_time > self.cancellation_deadline:
             return False, "Cancellation deadline has passed"
         
-        # Optional: 24-hour before event cancellation rule
+        # Optional: 6 hours before event cancellation rule
         if self.start_date:
-            cancellation_cutoff = self.start_date - datetime.timedelta(days=1)
+            cancellation_cutoff = self.start_date - datetime.timedelta(hours=6)
             if current_time > cancellation_cutoff:
                 return False, "Cancellations are only allowed up to 24 hours before the event"
         
