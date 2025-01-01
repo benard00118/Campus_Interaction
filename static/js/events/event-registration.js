@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function() {
             register: (eventId) => `/events/event/${eventId}/register/`,
             cancel: (eventId) => `/events/event/${eventId}/cancel/`,
             status: (eventId) => `/events/api/event/${eventId}/status/`,
+            waitlist: (eventId) => `/events/event/${eventId}/waitlist/`,
             redirect: '/events/'
         },
         retryConfig: {
@@ -111,10 +112,21 @@ document.addEventListener('DOMContentLoaded', function() {
             const form = utils.getElement(config.selectors.registrationForm);
             const submitBtn = utils.getElement(config.selectors.submitRegistrationBtn);
             const cancelBtn = utils.getElement(config.selectors.cancelRegistrationBtn);
+            const registerButton = utils.getElement(config.selectors.registerButton);
 
             if (form) form.addEventListener('submit', (e) => this.handleRegistration(e));
             if (submitBtn) submitBtn.addEventListener('click', (e) => this.handleRegistration(e));
             if (cancelBtn) cancelBtn.addEventListener('click', () => this.handleCancellation());
+            if (registerButton) registerButton.addEventListener('click', (e) => this.handleRegisterOrWaitlist(e));
+        }
+
+        async handleRegisterOrWaitlist(event) {
+            const action = event.target.dataset.action;
+            if (action === 'register') {
+                this.handleRegistration(event);
+            } else if (action === 'waitlist') {
+                this.handleWaitlist(event);
+            }
         }
 
         async handleRegistration(event) {
@@ -141,13 +153,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     utils.showAlert('success', response.message);
                     setTimeout(() => {
                         this.registrationModal.hide();
-                        utils.redirectTo(config.urls.redirect);
+                        this.updateRegistrationButton(response);
                     }, 1500);
                 } else {
                     this.handleErrors(response.errors || response.error);
                 }
             } catch (error) {
                 console.error('Registration error:', error);
+                utils.showAlert('danger', 'An unexpected error occurred. Please try again.');
+            }
+        }
+
+        async handleWaitlist(event) {
+            event.preventDefault();
+            utils.clearFormErrors();
+
+            try {
+                const response = await this.fetchWithRetry(
+                    config.urls.waitlist(this.eventId), 
+                    {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRFToken': utils.getCsrfToken()
+                        }
+                    }
+                );
+
+                if (response.success) {
+                    utils.showAlert('success', response.message);
+                    this.updateRegistrationButton(response);
+                } else {
+                    this.handleErrors(response.errors || response.error);
+                }
+            } catch (error) {
+                console.error('Waitlist error:', error);
                 utils.showAlert('danger', 'An unexpected error occurred. Please try again.');
             }
         }
@@ -181,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     utils.showAlert('success', response.message || 'Registration cancelled successfully');
                     setTimeout(() => {
-                        utils.redirectTo(config.urls.redirect);
+                        this.updateRegistrationButton(response);
                     }, 1500);
                 } else {
                     // Enhanced error handling
@@ -253,8 +293,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const registerButton = utils.getElement(config.selectors.registerButton);
             if (!registerButton) return;
         
-             // Destructure event details with comprehensive defaults
-             const {
+            // Destructure event details with comprehensive defaults
+            const {
                 max_participants = null,
                 spots_left = 0,
                 userStatus = { 
@@ -352,42 +392,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Event is full
                 return 'full';
             };
-         // Get the current state
-         const currentState = determineButtonState();
-         const buttonConfig = buttonStates[currentState];
+        
+            // Get the current state
+            const currentState = determineButtonState();
+            const buttonConfig = buttonStates[currentState];
+        
+            // Reset button classes and attributes
+            registerButton.className = `btn ${buttonConfig.class} btn-lg w-100`;
+            registerButton.innerHTML = `
+                <i class="fas fa-${buttonConfig.icon}"></i> 
+                ${buttonConfig.text}
+            `;
+        
+            // Configure modal and click behavior
+            if (buttonConfig.modal) {
+                registerButton.setAttribute('data-bs-toggle', 'modal');
+                registerButton.setAttribute('data-bs-target', '#registrationModal');
+            } else {
+                registerButton.removeAttribute('data-bs-toggle');
+                registerButton.removeAttribute('data-bs-target');
+            }
+        
+            // Disable button for non-interactive states
+            registerButton.disabled = buttonConfig.action === 'none';
+        
+            // Optional: Add tooltips or additional context
+            if (currentState === 'full_waitlist') {
+                registerButton.setAttribute('title', `Waiting list has ${waitlist_count} people`);
+            } else if (currentState === 'past') {
+                registerButton.setAttribute('title', 'This event has already occurred');
+            }
+        
+            // Add data attributes for tracking
+            registerButton.dataset.eventState = currentState;
+            registerButton.dataset.action = buttonConfig.action;
+            registerButton.dataset.spotsLeft = spots_left || 0;
+            registerButton.dataset.maxParticipants = max_participants || 0;
 
-         // Reset button classes and attributes
-         registerButton.className = `btn ${buttonConfig.class} btn-lg w-100`;
-         registerButton.innerHTML = `
-             <i class="fas fa-${buttonConfig.icon}"></i> 
-             ${buttonConfig.text}
-         `;
+            // Reattach event listeners
+            this.bindEvents();
+        }
 
-         // Configure modal and click behavior
-         if (buttonConfig.modal) {
-             registerButton.setAttribute('data-bs-toggle', 'modal');
-             registerButton.setAttribute('data-bs-target', '#registrationModal');
-         } else {
-             registerButton.removeAttribute('data-bs-toggle');
-             registerButton.removeAttribute('data-bs-target');
-         }
-
-         // Disable button for non-interactive states
-         registerButton.disabled = buttonConfig.action === 'none';
-
-         // Optional: Add tooltips or additional context
-         if (currentState === 'full_waitlist') {
-             registerButton.setAttribute('title', `Waiting list has ${waitlist_count} people`);
-         } else if (currentState === 'past') {
-             registerButton.setAttribute('title', 'This event has already occurred');
-         }
-
-         // Add data attributes for tracking
-         registerButton.dataset.eventState = currentState;
-         registerButton.dataset.action = buttonConfig.action;
-         registerButton.dataset.spotsLeft = spots_left || 0;
-         registerButton.dataset.maxParticipants = max_participants || 0;
-     }
         handleErrors(errors) {
             if (typeof errors === 'string') {
                 utils.showAlert('danger', errors);
