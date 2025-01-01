@@ -384,6 +384,7 @@ def event_status_view(request, event_id):
         }, status=500)
 
 
+
 @login_required
 def cancel_registration(request, event_id):
     logger.info(f"Cancellation attempt: User {request.user.id}, Event {event_id}")
@@ -394,6 +395,7 @@ def cancel_registration(request, event_id):
             'error': 'Method not allowed. Use POST.',
             'status_code': 'METHOD_NOT_ALLOWED'
         }, status=405)
+
     try:
         event = get_object_or_404(Event, id=event_id)
         can_cancel, reason = event.is_cancellation_allowed()
@@ -404,6 +406,7 @@ def cancel_registration(request, event_id):
                 'error': reason,
                 'status_code': 'CANCELLATION_NOT_ALLOWED'
             }, status=400)
+
         try:
             registration = EventRegistration.objects.get(
                 event=event,
@@ -417,18 +420,15 @@ def cancel_registration(request, event_id):
                 'error': 'No active registration found',
                 'status_code': 'NO_REGISTRATION'
             }, status=404)
+
         logger.info(f"Cancellation details: Registration {registration.id}, Status {registration.status}")
-        RegistrationCancellationLog.objects.create(
-            event=event,
-            user=request.user,
-            original_status=registration.status,
-            cancelled_at=timezone.now()
-        )
         registration.cancel_registration()
+
         try:
             send_cancellation_confirmation_email(request.user.profile, event)
         except Exception as email_error:
             logger.error(f"Email sending failed during cancellation: {email_error}")
+
         response_data = {
             'success': True,
             'message': 'Registration cancelled successfully',
@@ -438,6 +438,7 @@ def cancel_registration(request, event_id):
             'waitlist_promoted': True
         }
         return JsonResponse(response_data)
+
     except Exception as unexpected_error:
         logger.error(f"Unexpected cancellation error: {unexpected_error}", exc_info=True)
         return JsonResponse({
@@ -448,41 +449,6 @@ def cancel_registration(request, event_id):
         }, status=500)
 
 
-def _promote_from_waitlist(event):
-    waitlist_registrations = EventRegistration.objects.filter(
-        event=event,
-        status='waitlist'
-    ).order_by('waitlist_position')
-    for registration in waitlist_registrations:
-        if event.spots_left and event.spots_left > 0:
-            registration.status = 'registered'
-            registration.waitlist_position = None
-            registration.save()
-            _send_waitlist_promotion_email(registration)
-        else:
-            break
-def _send_waitlist_promotion_email(registration):
-    """
-    Send email to promote from waitlist to registered
-    """
-    try:
-        send_mail(
-            subject=f"Waitlist Promotion - {registration.event.title}",
-            message=render_to_string('events/emails/waitlist_promotion.html', {
-                'registration': registration,
-                'event': registration.event,
-                'name': registration.name,
-            }),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[registration.email],
-            html_message=render_to_string('events/emails/waitlist_promotion.html', {
-                'registration': registration,
-                'event': registration.event,
-                'name': registration.name,
-            }),
-        )
-    except Exception as email_error:
-        logger.error(f"Failed to send waitlist promotion email: {email_error}", exc_info=True)
 
 @login_required
 def register_event(request, event_id):
