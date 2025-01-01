@@ -1,4 +1,3 @@
-
 document.addEventListener('DOMContentLoaded', function() {
     const config = {
         selectors: {
@@ -23,6 +22,13 @@ document.addEventListener('DOMContentLoaded', function() {
             baseDelay: 1000
         }
     };
+
+    const trustedUrls = [
+        'https://trustedsite.com/',
+        'https://anothertrustedsite.com/',
+        '/about/',
+        '/contact/'
+    ];
 
     const utils = {
         getElement: (selector) => document.querySelector(selector),
@@ -52,6 +58,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error('CSRF token not found');
             }
             return token.value;
+        },
+
+        isTrustedUrl: (url) => {
+            try {
+                const parsedUrl = new URL(url, window.location.origin);
+                return trustedUrls.some(trusted => parsedUrl.href.startsWith(new URL(trusted, window.location.origin).href));
+            } catch (e) {
+                return false;
+            }
+        },
+
+        redirectTo: (url) => {
+            if (utils.isTrustedUrl(url)) {
+                window.location.href = url;
+            } else {
+                console.error('Attempted redirection to untrusted URL:', url);
+            }
         }
     };
 
@@ -118,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     utils.showAlert('success', response.message);
                     setTimeout(() => {
                         this.registrationModal.hide();
-                        window.location.href = config.urls.redirect;
+                        utils.redirectTo(config.urls.redirect);
                     }, 1500);
                 } else {
                     this.handleErrors(response.errors || response.error);
@@ -158,18 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     utils.showAlert('success', response.message || 'Registration cancelled successfully');
                     setTimeout(() => {
-                        window.location.href = config.urls.redirect;
+                        utils.redirectTo(config.urls.redirect);
                     }, 1500);
                 } else {
                     // Enhanced error handling
                     let errorMessage = response.error || 'Failed to cancel registration';
                     
                     // Log additional details for debugging
-                    // console.error('Cancellation error details:', response.details);
                     console.error('Cancellation Failed:', {
                         eventId: this.eventId,
                         errorDetails: response.details,
-                        timestamp: new Date().toISOString()});
+                        timestamp: new Date().toISOString()
+                    });
                     // Provide more context in the error message
                     if (response.details) {
                         errorMessage += `. Total registrations: ${response.details.total_registrations}`;
@@ -242,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 registration_open = true,
                 is_waitlist_open = true,
                 waitlist_count = 0
-            } = eventData;
+            } = event;
         
             // Comprehensive button states configuration
             const buttonStates = {
