@@ -46,6 +46,9 @@ Interactive platform for Kenyan university students featuring:
   - Full Stack: Peter
 - **Resource Sharing**
 
+  - Full Stack: Incognto
+    **Events Updates"
+
   - Full Stack: Samtech
 - **Marketplace**
 
@@ -81,8 +84,8 @@ Use this list to track progress. Mark tasks as completed by adding a ✅ at the 
 - [✅] **Polls Creation and Views** - Frontend (Debby)
 - [✅] **Polls Creation and Views** - Backend (Victor)
 
-- [ ] **Event Calendar** - Frontend (Saints)
-- [ ] **Event Calendar** - Backend (Incognito)
+- [✅] **Event Calendar** - Frontend (Incognto)
+- [✅] **Event Calendar** - Backend (Incognto)
 
 ### Community Features
 
