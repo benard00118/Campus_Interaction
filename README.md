@@ -28,8 +28,8 @@ Interactive platform for Kenyan university students featuring:
 
   - Frontend: Debby
   - Backend: Victor
+  - 
 - **Event Calendar**
-
   - Full Stack: Incognito
 
 ### Community Features
@@ -45,9 +45,6 @@ Interactive platform for Kenyan university students featuring:
 
   - Full Stack: Peter
 - **Resource Sharing**
-
-  - Full Stack: Incognto
-    **Events Updates"
 
   - Full Stack: Samtech
 - **Marketplace**
